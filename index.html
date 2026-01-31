@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D9 Marketing - Centro de Comando</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- Barra Lateral -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i data-lucide="zap" class="logo-icon"></i>
+                <span>D9 Marketing</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="#dashboard" class="nav-item active" id="nav-dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#leads" class="nav-item" id="nav-leads">
+                    <i data-lucide="users"></i>
+                    <span>Prospectos</span>
+                </a>
+                <a href="#calendar" class="nav-item" id="nav-calendar">
+                    <i data-lucide="calendar"></i>
+                    <span>Calendario</span>
+                </a>
+                <a href="#design" class="nav-item" id="nav-design">
+                    <i data-lucide="palette"></i>
+                    <span>Co-piloto Diseño</span>
+                </a>
+                <a href="#settings" class="nav-item" id="nav-settings">
+                    <i data-lucide="settings"></i>
+                    <span>Ajustes</span>
+                </a>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar">RN</div>
+                <div class="user-info">
+                    <span class="user-name">Director D9</span>
+                    <span class="user-role">Director</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h1 id="page-title">Dashboard de Comando</h1>
+                    <p class="subtitle" id="greeting">Bienvenido a tu turno nocturno. Tienes 3 horas de potencia.</p>
+                </div>
+                <div class="header-right">
+                    <div class="timer-badge">
+                        <i data-lucide="clock"></i>
+                        <span id="session-timer">03:00:00</span>
+                    </div>
+                </div>
+            </header>
+
+            <section class="dashboard-grid">
+                <!-- Tareas Críticas -->
+                <div class="card critical-tasks">
+                    <div class="card-header">
+                        <h3><i data-lucide="alert-circle"></i> Tareas Críticas de Hoy</h3>
+                    </div>
+                    <ul class="task-list" id="task-list">
+                        <!-- Se poblará dinámicamente -->
+                        <li class="task-item">
+                            <input type="checkbox" id="t1">
+                            <label for="t1">Seguimiento a 3 prospectos actuales</label>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Resumen CRM -->
+                <div class="card leads-summary">
+                    <div class="card-header">
+                        <h3><i data-lucide="trending-up"></i> Pipeline de Ventas</h3>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value">1</span>
+                            <span class="stat-label">Cliente Activo</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">3</span>
+                            <span class="stat-label">Prospectos</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- IA Concierge Global (Lateral Derecho) -->
+        <aside class="concierge-sidebar">
+            <div class="card concierge-chat">
+                <div class="card-header">
+                    <h3><i data-lucide="message-square"></i> IA Concierge</h3>
+                </div>
+                <div class="chat-display" id="concierge-messages">
+                    <div class="message system">
+                        Hola. Soy tu asistente virtual de D9 Marketing. ¿En qué trabajamos hoy?
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" placeholder="Pregúntame lo que sea..." id="concierge-input">
+                    <button id="send-btn"><i data-lucide="send"></i></button>
+                </div>
+            </div>
+        </aside>
+    </div>
+    <script src="main.js" type="module"></script>
+</body>
+
+</html>
