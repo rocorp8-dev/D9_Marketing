@@ -689,10 +689,6 @@ h1 {
     }
 }
 
-.generated-mockup {
-    animation: fadeIn 0.5s ease-out;
-}
-
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -702,5 +698,171 @@ h1 {
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+
+/* Mobile Only Utility */
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    #app {
+        flex-direction: column;
+        position: relative;
+    }
+
+    .mobile-only {
+        display: flex;
+    }
+
+    /* Sidebar Mobile Overlays */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 2px 0 20px rgba(0,0,0,0.5);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    /* Overlay backdrop when sidebar is open */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 90;
+        display: none;
+        backdrop-filter: blur(2px);
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+
+    /* Hide Concierge Sidebar on Mobile by default/make it a bottom sheet or toggle? 
+       For now, let's hide it and add a toggle later if needed, or stack it?
+       Stacking is easier. */
+    .concierge-sidebar {
+        display: none; /* Temporary hide for visual sanity on mobile until toggle added */
+    }
+    
+    .concierge-sidebar.active {
+        display: flex;
+        position: fixed;
+        right: 0;
+        top: 0;
+        height: 100vh;
+        z-index: 101;
+        width: 100%;
+        max-width: 350px;
+        box-shadow: -2px 0 20px rgba(0,0,0,0.5);
+    }
+
+    /* Main Content Adjustments */
+    .main-content {
+        padding: 20px;
+        width: 100%;
+    }
+
+    .top-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        width: 100%;
+    }
+
+    .header-right {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .status-group {
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+        display: none; /* Hide subtitle on mobile to save space */
+    }
+
+    /* Stack Grids */
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr; /* Stack stats on very small screens */
+    }
+
+    /* Kanban Horizontal Scroll */
+    .kanban-board {
+        flex-direction: row; 
+        overflow-x: auto;
+        padding-bottom: 20px;
+        scroll-snap-type: x mandatory;
+        gap: 16px;
+    }
+
+    .kanban-column {
+        min-width: 85vw; /* Each column takes almost full width */
+        scroll-snap-align: center;
+    }
+
+    /* Design Studio Stack */
+    .design-studio {
+        flex-direction: column;
+    }
+
+    .studio-sidebar {
+        width: 100%;
+    }
+
+    /* Calendar Grid Mobile */
+    .calendar-grid {
+        min-width: 600px; /* Force scroll */
+    }
+    
+    .calendar-container {
+        overflow-x: auto;
+    }
+
+    /* Icon Buttons */
+    .icon-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-main);
     }
 }

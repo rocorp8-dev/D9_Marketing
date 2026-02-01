@@ -33,6 +33,7 @@ function loadState() {
 
             if (parsed.history) state.history = parsed.history;
             if (parsed.timeLeft !== undefined) state.timeLeft = parsed.timeLeft;
+            if (parsed.currentView) state.currentView = parsed.currentView; // Restore view logic
             return;
         }
     } catch (e) {
@@ -58,6 +59,7 @@ function loadState() {
 function saveState() {
     try {
         const dataToSave = JSON.stringify({
+            currentView: state.currentView, // Persist current view
             leads: state.leads,
             calendarEvents: state.calendarEvents,
             tasks: state.tasks,
@@ -95,10 +97,51 @@ function renderHeaderRight() {
 document.addEventListener('DOMContentLoaded', () => {
     loadState();
     initNavigation();
-    renderView('nav-dashboard');
+
+    // Restore last view or default to dashboard
+    const savedView = state.currentView || 'nav-dashboard';
+    // Update active class
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    const activeLink = document.getElementById(savedView);
+    if (activeLink) activeLink.classList.add('active');
+
+    renderView(savedView);
     setupGlobalTimer();
     setupConcierge();
+    setupMobileMenu();
 });
+
+function setupMobileMenu() {
+    const btn = document.getElementById('mobile-menu-btn');
+    const sidebar = document.querySelector('.sidebar');
+
+    // Create overlay if it doesn't exist
+    let overlay = document.querySelector('.sidebar-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        document.body.appendChild(overlay);
+    }
+
+    const toggleMenu = () => {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    };
+
+    if (btn) btn.addEventListener('click', toggleMenu);
+    if (overlay) overlay.addEventListener('click', toggleMenu);
+
+    // Close on nav click
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 900) {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            }
+        });
+    });
+}
 
 function initNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
@@ -135,9 +178,17 @@ function renderView(viewId) {
             renderDesign(mainContent);
             setupDesignPilot(); // Activar lógica de Diseño
             break;
+        case 'nav-settings':
+            renderSettings(mainContent);
+            setupSettings();
+            break;
         default:
             renderDashboard(mainContent);
     }
+
+    // Update global state for active view
+    state.currentView = viewId;
+    saveState();
 
     if (window.lucide) window.lucide.createIcons();
 }
@@ -717,9 +768,9 @@ function setupDesignPilot() {
                 const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                     method: "POST",
                     headers: {
-                        "Authorization": "Bearer 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",
+                        "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
                         "Content-Type": "application/json",
-                        "HTTP-Referer": "http://localhost:3000",
+                        "HTTP-Referer": window.location.origin,
                         "X-Title": "D9 Marketing Dashboard"
                     },
                     body: JSON.stringify({
@@ -1118,7 +1169,7 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                    "Authorization": "Bearer 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",
+                    "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY_SECONDARY || import.meta.env.VITE_OPENROUTER_API_KEY}`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
@@ -1518,4 +1569,112 @@ function setupCalendar() {
 
     // Render inicial
     refresh();
+}
+
+function renderSettings(container) {
+    container.innerHTML = `
+        <header class="top-header">
+            <h1>Ajustes y Datos</h1>
+            <div class="header-right">${renderHeaderRight()}</div>
+        </header>
+
+        <section class="settings-container" style="max-width: 800px;">
+            <div class="card settings-card">
+                <div class="card-header">
+                    <h3><i data-lucide="database"></i> Gestión de Datos (Backup)</h3>
+                </div>
+                <p style="color: var(--text-dim); margin-bottom: 20px; font-size: 0.9rem;">
+                    Tus datos se guardan en este dispositivo. Para moverlos a otro lugar o evitar pérdidas al desplegar,
+                    descarga una copia de seguridad.
+                </p>
+                
+                <div class="settings-actions" style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <button id="btn-export" class="btn-primary">
+                        <i data-lucide="download"></i> Descargar Respaldo (JSON)
+                    </button>
+                    
+                    <div style="position: relative;">
+                         <input type="file" id="file-import" accept=".json" style="display: none;">
+                         <button id="btn-import" class="btn-secondary" style="border: 1px solid var(--border-color); color: var(--text-main); background: var(--card-bg); padding: 12px 24px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                            <i data-lucide="upload"></i> Restaurar Respaldo
+                         </button>
+                    </div>
+
+                    <button id="btn-reset" class="btn-danger" style="margin-left: auto;">
+                        <i data-lucide="trash"></i> Reset Fabric
+                    </button>
+                </div>
+            </div>
+
+            <div class="card settings-card" style="margin-top: 24px;">
+                 <div class="card-header">
+                    <h3><i data-lucide="info"></i> Información del Sistema</h3>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 0.9rem;">
+                    <div><strong>Versión:</strong> 2.5.0 (Mobile Ready)</div>
+                    <div><strong>Almacenamiento:</strong> LocalStorage</div>
+                    <div><strong>Estado Sync:</strong> <span style="color: var(--accent-primary);">● Local</span></div>
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+function setupSettings() {
+    const btnExport = document.getElementById('btn-export');
+    const btnImport = document.getElementById('btn-import');
+    const fileImport = document.getElementById('file-import');
+    const btnReset = document.getElementById('btn-reset');
+
+    if (btnExport) {
+        btnExport.onclick = () => {
+            const dataStr = localStorage.getItem('ninja_state');
+            if (!dataStr) return alert("No hay datos para exportar.");
+
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+            const exportFileDefaultName = `d9-backup-${new Date().toISOString().slice(0, 10)}.json`;
+
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+
+            logActivity("Respaldo descargado", "download");
+        };
+    }
+
+    if (btnImport && fileImport) {
+        btnImport.onclick = () => fileImport.click();
+
+        fileImport.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const obj = JSON.parse(event.target.result);
+                    // Basic validation
+                    if (!obj.leads && !obj.tasks) throw new Error("Formato inválido");
+
+                    localStorage.setItem('ninja_state', JSON.stringify(obj));
+                    alert("¡Datos restaurados con éxito! La página se recargará.");
+                    location.reload();
+                } catch (err) {
+                    alert("Error al leer el archivo: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+    }
+
+    if (btnReset) {
+        btnReset.onclick = () => {
+            if (confirm("¿Estás seguro? Esto borrará TODOS tus datos y restaurará el estado de fábrica.")) {
+                localStorage.removeItem('ninja_state');
+                location.reload();
+            }
+        };
+    }
 }
