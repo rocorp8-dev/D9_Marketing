@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@supabase/supabase-js": "^2.93.3",
     "lucide-static": "^0.563.0"
   },
   "name": "axial-astro",

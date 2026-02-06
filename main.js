@@ -1,4 +1,5 @@
-// D9 Marketing Dashboard - Main Logic
+import { supabase, syncToCloud, loadFromCloud } from './supabase.js';
+import { detectCommand, generateQuote, generateWhatsApp, listAllServices, packages } from './aiKnowledge.js';
 
 // Estado Global con Persistencia
 const state = {
@@ -11,37 +12,58 @@ const state = {
 };
 
 // Cargar estado inicial
-function loadState() {
+async function loadState() {
     try {
-        const saved = localStorage.getItem('ninja_state');
-        console.log("Cargando estado...", saved ? "Datos encontrados" : "Sin datos previos");
+        const cloudState = await loadFromCloud();
+        const localSaved = localStorage.getItem('ninja_state');
 
-        if (saved) {
-            const parsed = JSON.parse(saved);
+        let localData = localSaved ? JSON.parse(localSaved) : null;
+        let finalData = null;
+
+        // Lógica de Sincronización:
+        // Priorizamos la nube si tiene contenido real (leads o tareas)
+        const cloudHasData = cloudState && (
+            (cloudState.leads && cloudState.leads.length > 0) ||
+            (cloudState.tasks && cloudState.tasks.length > 0) ||
+            (cloudState.calendarEvents && cloudState.calendarEvents.length > 0)
+        );
+
+        if (cloudHasData) {
+            console.log("Cargando desde Supabase (Datos detectados)");
+            finalData = cloudState;
+        } else if (localData) {
+            console.log("Cargando desde LocalStorage (Nube vacía o sin datos)");
+            finalData = localData;
+            // Si la nube está vacía pero tenemos datos locales, sincronizar a la nube
+            if (!cloudHasData) syncToCloud(localData);
+        }
+
+        if (finalData) {
+            const parsed = finalData;
             if (parsed.leads) state.leads = parsed.leads;
             if (parsed.calendarEvents) state.calendarEvents = parsed.calendarEvents;
-
-            // Migración: Si existen datos guardados pero no tareas, inicializar con las de por defecto
-            if (parsed.tasks && parsed.tasks.length > 0) {
-                state.tasks = parsed.tasks;
-            } else {
-                state.tasks = [
-                    { id: 201, text: 'Seguimiento a 3 prospectos actuales', completed: false },
-                    { id: 202, text: 'Generar 3 posts para Meta (FB/IG)', completed: false }
-                ];
-            }
-
+            if (parsed.tasks) state.tasks = parsed.tasks;
             if (parsed.history) state.history = parsed.history;
             if (parsed.timeLeft !== undefined) state.timeLeft = parsed.timeLeft;
-            if (parsed.currentView) state.currentView = parsed.currentView; // Restore view logic
+            if (parsed.currentView) state.currentView = parsed.currentView;
+
+            console.log("Estado cargado con éxito.");
+
+            // Si cargamos de local y la nube estaba vacía, forzar un saveState para subirlo
+            if (finalData === localData && !cloudHasData) {
+                saveState();
+            }
             return;
         }
     } catch (e) {
         console.error("Error al cargar estado:", e);
     }
 
-    // Si llegamos aquí, es porque no hay datos o hubo un error
-    console.log("Inicializando con datos por defecto.");
+    cargarDefaults();
+}
+
+function cargarDefaults() {
+    console.log("Cargando datos por defecto...");
     state.leads = [
         { id: 1, name: 'Inmobiliaria Sol', interest: 'Redes Sociales', status: 'cold', brandDNA: { sector: 'Inmobiliario', values: 'Confianza, Lujo, Rapidez' } },
         { id: 2, name: 'Gimnasio Fit', interest: 'Diseño Logo', status: 'warm' }
@@ -56,19 +78,44 @@ function loadState() {
     saveState();
 }
 
-function saveState() {
+async function saveState() {
+    const syncIndicator = document.getElementById('sync-indicator');
+    const syncText = document.getElementById('sync-text');
+
     try {
-        const dataToSave = JSON.stringify({
-            currentView: state.currentView, // Persist current view
+        if (syncIndicator) {
+            syncIndicator.classList.add('syncing');
+            if (syncText) syncText.textContent = "Sincronizando...";
+        }
+
+        const dataToSave = {
+            currentView: state.currentView,
             leads: state.leads,
             calendarEvents: state.calendarEvents,
             tasks: state.tasks,
             history: state.history,
-            timeLeft: state.timeLeft
-        });
-        localStorage.setItem('ninja_state', dataToSave);
+            timeLeft: state.timeLeft,
+            updatedAt: new Date().toISOString()
+        };
+        const jsonStr = JSON.stringify(dataToSave);
+        localStorage.setItem('ninja_state', jsonStr);
+
+        // Intentar sincronizar con la nube
+        const success = await syncToCloud(dataToSave);
+
+        if (syncIndicator && syncText) {
+            syncIndicator.classList.remove('syncing');
+            if (success) {
+                syncText.textContent = "Sincronizado";
+                syncIndicator.style.color = "#4ade80";
+            } else {
+                syncText.textContent = "Solo Local";
+                syncIndicator.style.color = "#f87171";
+            }
+        }
     } catch (e) {
         console.error("Error al guardar estado:", e);
+        if (syncText) syncText.textContent = "Error Sync";
     }
 }
 
@@ -82,6 +129,10 @@ function logActivity(text, icon = 'activity') {
 function renderHeaderRight() {
     return `
         <div class="status-group">
+            <div id="sync-indicator" class="sync-badge" title="Estado de Sincronización">
+                <i data-lucide="cloud-check"></i>
+                <span id="sync-text">Sincronizado</span>
+            </div>
             <div class="clock-badge">
                 <i data-lucide="clock"></i>
                 <span id="real-clock">00:00:00</span>
@@ -94,8 +145,8 @@ function renderHeaderRight() {
     `;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadState();
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadState();
     initNavigation();
 
     // Restore last view or default to dashboard
@@ -156,34 +207,39 @@ function initNavigation() {
 }
 
 function renderView(viewId) {
-    const mainContent = document.querySelector('.main-content');
-    if (!mainContent) return;
+    const viewContainer = document.getElementById('view-container');
+    const pageTitle = document.getElementById('page-title');
+    if (!viewContainer) return;
 
-    // Limpiar listeners anteriores de manera simple (el reemplazo de innerHTML ayuda)
-    mainContent.innerHTML = '';
+    viewContainer.innerHTML = '';
 
     switch (viewId) {
         case 'nav-dashboard':
-            renderDashboard(mainContent);
+            pageTitle.innerText = "Dashboard de Comando";
+            renderDashboard(viewContainer);
             break;
         case 'nav-leads':
-            renderLeads(mainContent);
-            setupLeads(); // Activar lógica de CRM
+            pageTitle.innerText = "Gestión de Prospectos";
+            renderLeads(viewContainer);
+            setupLeads();
             break;
         case 'nav-calendar':
-            renderCalendar(mainContent);
-            setupCalendar(); // Activar lógica de Calendario
+            pageTitle.innerText = "Agenda Estratégica";
+            renderCalendar(viewContainer);
+            setupCalendar();
             break;
         case 'nav-design':
-            renderDesign(mainContent);
-            setupDesignPilot(); // Activar lógica de Diseño
+            pageTitle.innerText = "Co-piloto de Diseño";
+            renderDesign(viewContainer);
+            setupDesignPilot();
             break;
         case 'nav-settings':
-            renderSettings(mainContent);
+            pageTitle.innerText = "Ajustes del Sistema";
+            renderSettings(viewContainer);
             setupSettings();
             break;
         default:
-            renderDashboard(mainContent);
+            renderDashboard(viewContainer);
     }
 
     // Update global state for active view
@@ -212,17 +268,7 @@ function renderDashboard(container) {
     const activeClients = state.leads.filter(l => l.status === 'hot').length;
 
     container.innerHTML = `
-        <header class="top-header">
-            <div class="header-left">
-                <h1>Dashboard de Comando</h1>
-                <p class="subtitle">Bienvenido a tu turno nocturno. Tienes 3 horas de potencia.</p>
-            </div>
-            <div class="header-right">
-                ${renderHeaderRight()}
-            </div>
-        </header>
-
-        <section class="dashboard-grid">
+        <section class="dashboard-grid" style="padding-top: 20px;">
             <div class="card critical-tasks">
                 <div class="card-header">
                     <h3><i data-lucide="alert-circle"></i> Tareas de Hoy</h3>
@@ -266,15 +312,9 @@ window.toggleTask = function (taskId) {
 
 function renderLeads(container) {
     container.innerHTML = `
-        <header class="top-header">
-            <div class="header-left">
-                <h1>Gestión de Prospectos</h1>
-            </div>
-            <div class="header-right">
-                ${renderHeaderRight()}
-                <button id="add-lead-btn" class="btn-primary" style="margin-left:15px;" onclick="window.currentOpenModal()"><i data-lucide="plus"></i> Nuevo Lead</button>
-            </div>
-        </header>
+        <div style="display:flex; justify-content: flex-end; margin-bottom: 20px;">
+            <button id="add-lead-btn" class="btn-primary" onclick="window.currentOpenModal()"><i data-lucide="plus"></i> Nuevo Lead</button>
+        </div>
 
         <section class="kanban-board">
             <div class="kanban-column" id="col-cold" data-status="cold" ondrop="drop(event)" ondragover="allowDrop(event)">
@@ -469,7 +509,7 @@ function createLeadCard(lead) {
         <div id="lead-${lead.id}" class="lead-card" draggable="true" ondragstart="drag(event)" onclick="window.openLeadModal(${lead.id})" style="cursor:pointer; transition:transform 0.2s;">
             <div class="card-top">
                 <h5>${lead.name}</h5>
-                <i data-lucide="pencil" style="opacity:0.5; width:14px;"></i>
+                <i data-lucide="pencil" style="opacity:0.9; width:14px;"></i>
             </div>
             <p class="interest"><i data-lucide="target" style="width:14px"></i> ${lead.interest}</p>
             ${lead.brandDNA?.sector ? `<p class="sector" style="font-size:0.75em; color:var(--accent-primary); margin-top:4px;">${lead.brandDNA.sector}</p>` : ''}
@@ -594,10 +634,13 @@ function setupLeads() {
 
     window.currentOpenModal = () => openModal();
 
+    // Actualizar el manejador global para que use el openModal de esta renderización
+    window._lastOpenModal = openModal;
+
     if (!window._leadEditorListener) {
         document.addEventListener('open-lead-editor', (e) => {
             const lead = state.leads.find(l => l.id === e.detail.id);
-            if (lead) openModal(lead);
+            if (lead && window._lastOpenModal) window._lastOpenModal(lead);
         });
         window._leadEditorListener = true;
     }
@@ -677,12 +720,6 @@ function translateStatus(status) {
 
 function renderDesign(container) {
     container.innerHTML = `
-        <header class="top-header">
-            <h1>Co-piloto de Diseño</h1>
-            <div class="header-right">
-                ${renderHeaderRight()}
-            </div>
-        </header>
         <section class="design-studio">
             <div class="studio-sidebar">
                 <div class="format-select">
@@ -1109,6 +1146,14 @@ function setupConcierge() {
     const btn = document.getElementById('send-btn');
     if (!btn || !input) return;
 
+    // Quick Actions
+    document.querySelectorAll('.action-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            input.value = pill.dataset.cmd;
+            input.focus();
+        });
+    });
+
     btn.addEventListener('click', async () => {
         const text = input.value.trim();
         if (!text) return;
@@ -1117,17 +1162,54 @@ function setupConcierge() {
         input.value = '';
 
         try {
+            // 1. Detectar Comandos Locales (Presupuestos, WhatsApp, Servicios)
+            const command = detectCommand(text);
+
+            if (command) {
+                let responseContent = '';
+
+                if (command.type === 'quote') {
+                    responseContent = generateQuote(command.serviceId, command.clientName);
+                } else if (command.type === 'whatsapp') {
+                    responseContent = generateWhatsApp(command.templateType, command.clientName);
+                } else if (command.type === 'services') {
+                    const services = listAllServices();
+                    responseContent = `<strong>SERVICIOS DISPONIBLES:</strong><br><br>` +
+                        services.map(s => `<strong>${s.name}</strong><br>${s.description}<br>💰 ${s.price}<br>`).join('<br>');
+                } else if (command.type === 'packages') {
+                    responseContent = `<strong>PAQUETES D9:</strong><br><br>` +
+                        Object.values(packages).map(p => `<strong>${p.name}</strong><br>${p.description}<br>💰 ${p.price} (Ahorras ${p.savings})<br>`).join('<br>');
+                }
+
+                // Simular delay de "pensando"
+                const thinkingMsg = document.createElement('div');
+                thinkingMsg.className = 'message system thinking';
+                thinkingMsg.innerHTML = '<i data-lucide="loader" class="spin"></i> Procesando...';
+                document.getElementById('concierge-messages').appendChild(thinkingMsg);
+
+                setTimeout(() => {
+                    thinkingMsg.remove();
+                    appendMessage('system', responseContent, true); // true = allowHTML/CopyButton
+                }, 800);
+
+                return; // Detener flujo, no llamar a la API
+            }
+
             // Instrucciones del Sistema para Function Calling Simulado
             const systemPrompt = `
 Eres la 'IA Concierge', una secretaria virtual ejecutiva super eficiente.
 Tu objetivo es ayudar al usuario y gestionar el CRM, el CALENDARIO y las TAREAS.
 
+CONOCIMIENTO DEL TIEMPO:
+Hoy es ${new Intl.DateTimeFormat('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date())}
+Hora local: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+
 CONOCIMIENTO ACTUAL DEL CRM (Detalle de IDENTIDAD):
 ${state.leads.map(l => `- **ID: ${l.id}** | **${l.name}** [Status: ${l.status}, Interés: ${l.interest}]
   Sector: ${l.brandDNA?.sector || 'N/A'}, Dolor: ${l.brandDNA?.pain || 'N/A'}`).join('\n')}
 
-CALENDARIO:
-${state.calendarEvents.map(e => `- ${e.date} ${e.time}: ${e.title}`).join('\n')}
+CALENDARIO (Incluye IDs para borrar):
+${state.calendarEvents.map(e => `- [ID: ${e.id}] ${e.date} ${e.time}: ${e.title}`).join('\n')}
 
 TAREAS PENDIENTES:
 ${state.tasks.filter(t => !t.completed).map(t => `- [${t.id}] ${t.text}`).join('\n')}
@@ -1164,12 +1246,17 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
 \`\`\`json
 { "action": "add_task", "text": "Hacer X cosa" }
 \`\`\`
+
+SI EL USUARIO QUIERE BORRAR/ELIMINAR UN EVENTO DEL CALENDARIO:
+\`\`\`json
+{ "action": "delete_event", "id": 123456789 }
+\`\`\`
             `;
 
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY_SECONDARY || import.meta.env.VITE_OPENROUTER_API_KEY}`,
+                    "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
@@ -1203,7 +1290,7 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
                         };
                         state.leads.push(newLead);
                         logActivity(`IA creó prospecto: ${newLead.name}`, 'user-plus');
-                        saveState();
+                        await saveState();
 
                         // Notificación en el chat
                         displayMessage = displayMessage.replace(match[0], `\n✅ **Lead creado:** ${newLead.name}`);
@@ -1218,7 +1305,7 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
                         if (lead) {
                             lead.status = command.status;
                             logActivity(`IA actualizó ${lead.name} a ${command.status}`, 'refresh-cw');
-                            saveState();
+                            await saveState();
                             displayMessage = displayMessage.replace(match[0], `\n✅ **Estado actualizado:** ${lead.name} -> ${command.status}`);
                             renderView(window.location.hash.replace('#', 'nav-') || 'nav-dashboard');
                         }
@@ -1231,7 +1318,7 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
                             const leadName = lead.name;
                             state.leads = state.leads.filter(l => l.id !== leadId);
                             logActivity(`IA eliminó prospecto: ${leadName}`, 'trash-2');
-                            saveState();
+                            await saveState();
                             displayMessage = displayMessage.replace(match[0], `\n✅ **Prospecto eliminado:** ${leadName}`);
                             renderView(window.location.hash.replace('#', 'nav-') || 'nav-dashboard');
                         }
@@ -1247,13 +1334,30 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
                         };
                         state.calendarEvents.push(newEvent);
                         logActivity(`IA agendó: ${newEvent.title}`, 'calendar');
-                        saveState();
+                        await saveState();
 
                         // Notificación en el chat
                         displayMessage = displayMessage.replace(match[0], `\n📅 **Evento agendado:** ${newEvent.title} para el ${newEvent.date}`);
 
-                        // Actualizar UI si es necesario
-                        if (document.getElementById('calendar-grid')) renderView('nav-calendar');
+                        // Actualizar UI si estamos en la vista de calendario
+                        if (state.currentView === 'nav-calendar') {
+                            renderView('nav-calendar');
+                        }
+                    }
+
+                    if (command.action === 'delete_event') {
+                        const eventId = parseInt(command.id);
+                        const event = state.calendarEvents.find(e => e.id === eventId);
+                        if (event) {
+                            const eventTitle = event.title;
+                            state.calendarEvents = state.calendarEvents.filter(e => e.id !== eventId);
+                            logActivity(`IA eliminó evento: ${eventTitle}`, 'calendar-x');
+                            await saveState();
+                            displayMessage = displayMessage.replace(match[0], `\n✅ **Evento eliminado:** ${eventTitle}`);
+                            if (state.currentView === 'nav-calendar') {
+                                renderView('nav-calendar');
+                            }
+                        }
                     }
 
                     if (command.action === 'add_task') {
@@ -1264,7 +1368,7 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
                         };
                         state.tasks.push(newTask);
                         logActivity(`IA anotó tarea: ${newTask.text}`, 'list');
-                        saveState();
+                        await saveState();
 
                         // Notificación en el chat
                         displayMessage = displayMessage.replace(match[0], `\n📝 **Tarea anotada:** ${newTask.text}`);
@@ -1296,35 +1400,56 @@ SI EL USUARIO QUIERE ANOTAR UNA TAREA:
     });
 }
 
-function appendMessage(role, text) {
+function appendMessage(role, text, isHtml = false) {
     const chatDisplay = document.getElementById('concierge-messages');
     if (!chatDisplay) return;
     const div = document.createElement('div');
     div.className = `message ${role}`;
-    div.textContent = text;
+
+    // Formatear negritas de Markdown a HTML si viene texto plano
+    let formattedText = text;
+    if (!isHtml) {
+        formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    if (isHtml || formattedText.includes('<strong>')) {
+        div.innerHTML = formattedText.replace(/\n/g, '<br>');
+    } else {
+        div.textContent = text;
+    }
+
+    // Agregar botón de copiar si es un mensaje del sistema largo (presupuesto/whatsapp)
+    if (role === 'system' && (text.includes('PRESUPUESTO') || text.includes('Hola'))) {
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.innerHTML = '<i data-lucide="copy"></i> Copiar';
+        copyBtn.style.cssText = 'display:block; margin-top:10px; font-size:0.7rem; padding:4px 8px; background:rgba(255,255,255,0.1); border:none; border-radius:4px; color:white; cursor:pointer;';
+
+        copyBtn.onclick = () => {
+            navigator.clipboard.writeText(text).then(() => {
+                copyBtn.innerHTML = '<i data-lucide="check"></i> Copiado';
+                setTimeout(() => copyBtn.innerHTML = '<i data-lucide="copy"></i> Copiar', 2000);
+            });
+        };
+        div.appendChild(copyBtn);
+    }
+
     chatDisplay.appendChild(div);
     chatDisplay.scrollTop = chatDisplay.scrollHeight;
+    if (window.lucide) window.lucide.createIcons();
 }
 
 // --- LOGICA DEL CALENDARIO ---
 
 function renderCalendar(container) {
     container.innerHTML = `
-        <header class="top-header">
-            <div class="header-left">
-                <h1>Calendario Operativo</h1>
-            </div>
-            <div class="header-right">
-                ${renderHeaderRight()}
-                <div class="calendar-controls" style="display:flex; gap:10px; align-items:center; margin-left:15px;">
-                    <button id="view-week" class="btn-secondary active">Semana</button>
-                    <button id="view-month" class="btn-secondary">Mes</button>
-                    <button id="add-event-btn" class="btn-primary" style="margin-left:15px;"><i data-lucide="plus"></i> Agendar</button>
-                </div>
-            </div>
-        </header>
+        <div class="calendar-controls" style="display:flex; gap:10px; align-items:center; margin-bottom:15px; justify-content: flex-end;">
+            <button id="view-week" class="btn-secondary active">Semana</button>
+            <button id="view-month" class="btn-secondary">Mes</button>
+            <button id="add-event-btn" class="btn-primary" style="margin-left:15px;"><i data-lucide="plus"></i> Agendar</button>
+        </div>
 
-        <section class="calendar-container" style="background:var(--bg-card); padding:20px; border-radius:12px; margin-top:20px; height:calc(100vh - 180px); display:flex; flex-direction:column;">
+        <section class="calendar-container" style="background:var(--bg-card); padding:20px; border-radius:12px; height:calc(100vh - 180px); display:flex; flex-direction:column;">
             <div class="calendar-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2 id="calendar-title" style="margin:0; font-size:1.5rem;">Enero 2026</h2>
                 <div class="nav-arrows">
@@ -1573,19 +1698,14 @@ function setupCalendar() {
 
 function renderSettings(container) {
     container.innerHTML = `
-        <header class="top-header">
-            <h1>Ajustes y Datos</h1>
-            <div class="header-right">${renderHeaderRight()}</div>
-        </header>
-
-        <section class="settings-container" style="max-width: 800px;">
+        <section class="settings-container" style="max-width: 800px; padding-top: 20px;">
             <div class="card settings-card">
                 <div class="card-header">
                     <h3><i data-lucide="database"></i> Gestión de Datos (Backup)</h3>
                 </div>
                 <p style="color: var(--text-dim); margin-bottom: 20px; font-size: 0.9rem;">
-                    Tus datos se guardan en este dispositivo. Para moverlos a otro lugar o evitar pérdidas al desplegar,
-                    descarga una copia de seguridad.
+                    Tus datos están protegidos en la nube de Supabase. Puedes descargar un respaldo manual si deseas
+                    conservar una copia offline.
                 </p>
                 
                 <div class="settings-actions" style="display: flex; gap: 15px; flex-wrap: wrap;">
@@ -1611,9 +1731,9 @@ function renderSettings(container) {
                     <h3><i data-lucide="info"></i> Información del Sistema</h3>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 0.9rem;">
-                    <div><strong>Versión:</strong> 2.5.0 (Mobile Ready)</div>
-                    <div><strong>Almacenamiento:</strong> LocalStorage</div>
-                    <div><strong>Estado Sync:</strong> <span style="color: var(--accent-primary);">● Local</span></div>
+                    <div><strong>Versión:</strong> 2.5.5 (Cloud Ready)</div>
+                    <div><strong>Almacenamiento:</strong> Supabase Cloud</div>
+                    <div><strong>Estado Sync:</strong> <span style="color: #4ade80;">● Sincronizado</span></div>
                 </div>
             </div>
         </section>

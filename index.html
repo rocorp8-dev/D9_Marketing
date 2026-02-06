@@ -58,45 +58,22 @@
                     <p class="subtitle" id="greeting">Bienvenido a tu turno nocturno. Tienes 3 horas de potencia.</p>
                 </div>
                 <div class="header-right">
-                    <div class="timer-badge">
-                        <i data-lucide="clock"></i>
-                        <span id="session-timer">03:00:00</span>
+                    <div class="status-group">
+                        <div class="clock-badge">
+                            <i data-lucide="clock"></i>
+                            <span id="real-clock">00:00:00</span>
+                        </div>
+                        <div class="timer-badge">
+                            <i data-lucide="hourglass"></i>
+                            <span id="session-timer">03:00:00</span>
+                        </div>
                     </div>
                 </div>
             </header>
 
-            <section class="dashboard-grid">
-                <!-- Tareas Críticas -->
-                <div class="card critical-tasks">
-                    <div class="card-header">
-                        <h3><i data-lucide="alert-circle"></i> Tareas Críticas de Hoy</h3>
-                    </div>
-                    <ul class="task-list" id="task-list">
-                        <!-- Se poblará dinámicamente -->
-                        <li class="task-item">
-                            <input type="checkbox" id="t1">
-                            <label for="t1">Seguimiento a 3 prospectos actuales</label>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- Resumen CRM -->
-                <div class="card leads-summary">
-                    <div class="card-header">
-                        <h3><i data-lucide="trending-up"></i> Pipeline de Ventas</h3>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-value">1</span>
-                            <span class="stat-label">Cliente Activo</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-value">3</span>
-                            <span class="stat-label">Prospectos</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <div id="view-container">
+                <!-- Las vistas se cargarán aquí -->
+            </div>
         </main>
 
         <!-- IA Concierge Global (Lateral Derecho) -->
@@ -109,6 +86,11 @@
                     <div class="message system">
                         Hola. Soy tu asistente virtual de D9 Marketing. ¿En qué trabajamos hoy?
                     </div>
+                </div>
+                <div class="quick-actions">
+                    <button class="action-pill" data-cmd="/servicios"><i data-lucide="file-text" style="width:12px"></i> Servicios</button>
+                    <button class="action-pill" data-cmd="/presupuesto metaAds "><i data-lucide="calculator" style="width:12px"></i> Presupuesto</button>
+                    <button class="action-pill" data-cmd="/whatsapp followUpQuote "><i data-lucide="message-circle" style="width:12px"></i> WhatsApp</button>
                 </div>
                 <div class="chat-input-area">
                     <input type="text" placeholder="Pregúntame lo que sea..." id="concierge-input">
