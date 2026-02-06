@@ -8,186 +8,143 @@ import { supabase, syncToCloud, loadFromCloud } from './supabase.js';
 // ============================================
 
 const services = {
-    metaAds: {
-        id: 'metaAds',
-        name: 'Campaña Publicitaria Meta Ads',
-        description: 'Estructura, diseño, lanzamiento y optimización de campañas publicitarias en Facebook e Instagram Ads.',
-        price: 'Desde $3,500 MXN / mes',
+    logo: {
+        id: 'logo',
+        name: 'Diseño de Logotipo',
+        description: 'Creación de identidad visual. Incluye concepto creativo y entrega profesional.',
+        price: '$3,500.00 MXN',
         priceBase: 3500,
+        billingCycle: 'pago único',
+        includes: ['2 Propuestas de diseño', 'Modificaciones/Correcciones', 'Pruebas de color', 'Formatos finales: EPS, JPG, TIFF']
+    },
+    redisenolog: {
+        id: 'redisenolog',
+        name: 'Rediseño de Logotipo',
+        description: 'Actualización y modernización de marca existente.',
+        price: '$499.00 MXN',
+        priceBase: 499,
+        billingCycle: 'pago único',
+        includes: ['Ajustes visuales', 'Optimización de trazos']
+    },
+    vectorizacion: {
+        id: 'vectorizacion',
+        name: 'Vectorización de Logo',
+        description: 'Conversión de imagen a formato vectorial (curvas).',
+        price: '$250.00 MXN',
+        priceBase: 250,
+        billingCycle: 'pago único',
+        includes: ['Digitalización profesional', 'Entrega en formato editable']
+    },
+    manual: {
+        id: 'manual',
+        name: 'Manual de Imagen Corporativa',
+        description: 'Documento detallado con normas de uso de marca.',
+        price: '$10,000.00 MXN',
+        priceBase: 10000,
+        billingCycle: 'pago único',
+        includes: ['Especificaciones cromáticas', 'Tipografía oficial', 'Usos permitidos y prohibidos', 'Versión digital e impresa']
+    },
+    tarjetas: {
+        id: 'tarjetas',
+        name: 'Diseño de Tarjetas de Presentación',
+        description: 'Diseño profesional para impresión.',
+        price: '$350.00 MXN',
+        priceBase: 350,
+        billingCycle: 'pago único',
+        includes: ['Diseño personalizado', 'Preparación para imprenta']
+    },
+    hoja: {
+        id: 'hoja',
+        name: 'Diseño de Hoja Membretada',
+        description: 'Diseño de papelería corporativa.',
+        price: '$250.00 MXN',
+        priceBase: 250,
+        billingCycle: 'pago único',
+        includes: ['Layout profesional', 'Formatos para impresión y digital']
+    },
+    triptico: {
+        id: 'triptico',
+        name: 'Diseño de Tríptico / Díptico',
+        description: 'Material publicitario plegable.',
+        price: '$500.00 MXN',
+        priceBase: 500,
+        billingCycle: 'pago único',
+        includes: ['Diseño editorial', 'Organización de contenido']
+    },
+    flyer: {
+        id: 'flyer',
+        name: 'Diseño de Flyer / Volante',
+        description: 'Diseño publicitario de una cara.',
+        price: '$400.00 MXN',
+        priceBase: 400,
+        billingCycle: 'pago único',
+        includes: ['Concepto visual impactante']
+    },
+    webBasica: {
+        id: 'webBasica',
+        name: 'Sitio Web Básico',
+        description: 'Presencia digital esencial.',
+        price: '$4,800.00 MXN',
+        priceBase: 4800,
+        billingCycle: 'pago único',
+        includes: ['1 a 4 secciones', '3 Correos corporativos', 'Dominio y Hospedaje (1 año)']
+    },
+    webIntermedia: {
+        id: 'webIntermedia',
+        name: 'Sitio Web Intermedia',
+        description: 'Web con mayor contenido y funciones.',
+        price: '$7,200.00 MXN',
+        priceBase: 7200,
+        billingCycle: 'pago único',
+        includes: ['1 a 6 secciones', '5 correos electrónicos', 'Menús interactivos']
+    },
+    webAvanzada: {
+        id: 'webAvanzada',
+        name: 'Sitio Web Avanzada',
+        description: 'Plataforma web robusta.',
+        price: '$10,500.00 MXN',
+        priceBase: 10500,
+        billingCycle: 'pago único',
+        includes: ['4 a 8 secciones', '7 a 10 correos electrónicos', 'Integración de audio/video']
+    },
+    redesBasico: {
+        id: 'redesBasico',
+        name: 'Gestión Redes Social (Básico)',
+        description: 'Manejo de presencia en redes.',
+        price: '$3,999.00 MXN / mes',
+        priceBase: 3999,
         billingCycle: 'mensual',
-        includes: [
-            'Estrategia Publicitaria Personalizada',
-            'Segmentación de Audiencias Avanzada',
-            'Diseño de Creativos (Imágenes/Videos)',
-            'Redacción de Textos Persuasivos (Copywriting)',
-            'Configuración de Pixel y Eventos',
-            'Reporte de Resultados Mensual'
-        ],
-        notIncludes: [
-            'Inversión publicitaria (pagada directamente a Meta)',
-            'Gestión de comentarios (Community Management)'
-        ]
+        includes: ['2 redes sociales', '8 diseños mensuales', 'Gestión de campañas']
     },
-    googleAds: {
-        id: 'googleAds',
-        name: 'Google Ads (SEM)',
-        description: 'Campañas de búsqueda y display en Google para captar clientes con alta intención de compra.',
-        price: 'Desde $4,000 MXN / mes',
-        priceBase: 4000,
+    redesMedio: {
+        id: 'redesMedio',
+        name: 'Gestión Redes Social (Medio)',
+        description: 'Estrategia activa en redes.',
+        price: '$5,999.00 MXN / mes',
+        priceBase: 5999,
         billingCycle: 'mensual',
-        includes: [
-            'Investigación de Palabras Clave',
-            'Configuración de Campañas de Búsqueda',
-            'Redacción de Anuncios',
-            'Optimización de Presupuesto',
-            'Reporte de Rendimiento'
-        ],
-        notIncludes: [
-            'Inversión publicitaria (pagada a Google)',
-            'Diseño de Landing Page (se cotiza aparte)'
-        ]
-    },
-    consultoria: {
-        id: 'consultoria',
-        name: 'Consultoría Estratégica',
-        description: 'Sesiones 1 a 1 para analizar tu negocio y definir una hoja de ruta digital clara.',
-        price: '$1,500 MXN / hora',
-        priceBase: 1500,
-        billingCycle: 'pago unico',
-        includes: [
-            'Análisis de Situación Actual',
-            'Definición de Objetivos',
-            'Estrategia de Canales',
-            'Auditoría de Redes Sociales',
-            'Grabación de la Sesión'
-        ],
-        notIncludes: [
-            'Implementación de la estrategia',
-            'Herramientas de pago'
-        ]
-    },
-    seo: {
-        id: 'seo',
-        name: 'Posicionamiento SEO',
-        description: 'Optimización de tu sitio web para aparecer orgánicamente en los primeros lugares de Google.',
-        price: 'Desde $5,000 MXN / mes',
-        priceBase: 5000,
-        billingCycle: 'mensual',
-        includes: [
-            'Auditoría Técnica SEO',
-            'Optimización On-Page',
-            'Estrategia de Contenidos (Blog)',
-            'Link Building Básico',
-            'Reporte de Posicionamiento'
-        ],
-        notIncludes: [
-            'Rediseño completo del sitio web',
-            'Costos de hosting/dominio'
-        ]
-    },
-    socialMedia: {
-        id: 'socialMedia',
-        name: 'Gestión de Redes Sociales',
-        description: 'Creación de contenido, programación y gestión de comunidad para mantener tus redes activas.',
-        price: 'Desde $4,500 MXN / mes',
-        priceBase: 4500,
-        billingCycle: 'mensual',
-        includes: [
-            'Planificación de Contenidos (12 posts/mes)',
-            'Diseño Gráfico y Edición de Video simple',
-            'Redacción de Copies',
-            'Publicación Programada',
-            'Respuesta a Comentarios (L-V)'
-        ],
-        notIncludes: [
-            'Inversión publicitaria',
-            'Sesiones de fotos presenciales'
-        ]
-    },
-    webDesign: {
-        id: 'webDesign',
-        name: 'Diseño Web Profesional',
-        description: 'Sitios web modernos, rápidos y optimizados para ventas.',
-        price: 'Desde $8,000 MXN',
-        priceBase: 8000,
-        billingCycle: 'pago unico',
-        includes: [
-            'Diseño UX/UI Personalizado',
-            'Desarrollo en WordPress o Código',
-            'Optimización Móvil (Responsive)',
-            'Integración con WhatsApp/CRM',
-            'SEO Básico'
-        ],
-        notIncludes: [
-            'Hosting y Dominio (Anual)',
-            'Mantenimiento mensual'
-        ]
-    },
-    emailMarketing: {
-        id: 'emailMarketing',
-        name: 'Email Marketing',
-        description: 'Campañas de correo para nutrir leads y fidelizar clientes.',
-        price: 'Desde $2,500 MXN / mes',
-        priceBase: 2500,
-        billingCycle: 'mensual',
-        includes: [
-            'Estrategia de Secuencias',
-            'Diseño de Plantillas',
-            'Redacción de Correos',
-            'Segmentación de Base de Datos',
-            'Reporte de Aperturas y Clics'
-        ],
-        notIncludes: [
-            'Costo de plataforma de envíos (Mailchimp, etc.)'
-        ]
-    },
-    branding: {
-        id: 'branding',
-        name: 'Identidad Visual (Branding)',
-        description: 'Creación de logotipos y manuales de identidad visual para marcas memorables.',
-        price: 'Desde $6,000 MXN',
-        priceBase: 6000,
-        billingCycle: 'pago unico',
-        includes: [
-            'Diseño de Logotipo (3 propuestas)',
-            'Paleta de Colores y Tipografía',
-            'Manual de Uso de Marca',
-            'Archivos Editables (AI, PDF, PNG)',
-            'Diseño de Tarjeta de Presentación'
-        ],
-        notIncludes: [
-            'Impresión de materiales'
-        ]
+        includes: ['3 redes sociales', '12 diseños mensuales', 'Stories', 'Análisis trimestral']
     }
 }
 
 const packages = {
-    starter: {
-        id: 'starter',
-        name: 'Paquete Emprendedor',
-        services: ['socialMedia', 'metaAds'],
-        price: '$7,200 MXN / mes',
-        discount: '10%',
-        savings: '$800 MXN',
-        description: 'Ideal para negocios que inician y buscan visibilidad inmediata.'
+    corpBase: {
+        id: 'corpBase',
+        name: 'Paquete Corporativo Base',
+        services: ['logo', 'tarjetas', 'hoja'],
+        price: '$3,950.00 MXN',
+        discount: '5%',
+        savings: '$150 MXN',
+        description: 'Ideal para iniciar con una imagen profesional completa.'
     },
-    growth: {
-        id: 'growth',
-        name: 'Paquete Crecimiento',
-        services: ['socialMedia', 'metaAds', 'emailMarketing'],
-        price: '$9,450 MXN / mes',
-        discount: '15%',
-        savings: '$1,050 MXN',
-        description: 'Para empresas que quieren escalar y diversificar canales.'
-    },
-    premium: {
-        id: 'premium',
-        name: 'Paquete Dominio Total',
-        services: ['socialMedia', 'metaAds', 'googleAds', 'seo'],
-        price: '$15,300 MXN / mes',
-        discount: '20%',
-        savings: '$1,700 MXN',
-        description: 'Estrategia 360 para liderar el mercado.'
+    corpPlus: {
+        id: 'corpPlus',
+        name: 'Paquete Corporativo Plus',
+        services: ['logo', 'tarjetas', 'hoja', 'triptico'],
+        price: '$4,750.00 MXN',
+        discount: '8%',
+        savings: '$350 MXN',
+        description: 'Paquete integral para marketing y papelería.'
     }
 }
 
@@ -301,30 +258,45 @@ const companyInfo = {
 const getServiceInfo = (id) => services[id] || null
 const listAllServices = () => Object.values(services)
 const generateQuote = (serviceId, clientName, duration = 1) => {
-    if (services[serviceId]) {
-        if (serviceId === 'metaAds') return budgetTemplates.metaAds(clientName, duration)
-        return budgetTemplates.generic(clientName, serviceId, duration)
+    const sId = serviceId.toLowerCase();
+    const key = Object.keys(services).find(k => k.toLowerCase() === sId);
+
+    if (key) {
+        if (key === 'metaAds') return budgetTemplates.metaAds(clientName, duration)
+        return budgetTemplates.generic(clientName, key, duration)
     }
-    if (packages[serviceId]) return budgetTemplates.package(clientName, serviceId)
-    return "Servicio no encontrado."
+
+    const pkgKey = Object.keys(packages).find(k => k.toLowerCase() === sId);
+    if (pkgKey) return budgetTemplates.package(clientName, pkgKey)
+
+    return "Servicio no encontrado.";
 }
 const generateWhatsApp = (type, clientName) => {
-    const template = whatsappTemplates[type]
-    if (template) return template(clientName)
-    return "Plantilla no encontrada."
+    const tId = type.toLowerCase();
+    const key = Object.keys(whatsappTemplates).find(k => k.toLowerCase() === tId);
+
+    if (key) {
+        let message = whatsappTemplates[key](clientName);
+        // Fix for welcome template typo if it exists in the string
+        message = message.replace('${clientName]', clientName);
+        return message;
+    }
+    return "Plantilla no encontrada.";
 }
 const detectCommand = (input) => {
-    const text = input.toLowerCase().trim()
+    const trimmed = input.trim();
+    const text = trimmed.toLowerCase();
+
     if (text.startsWith('/presupuesto')) {
-        const parts = text.split(' ')
-        const serviceId = parts[1]
-        const clientName = parts.slice(2).join(' ') || 'Cliente'
+        const parts = trimmed.split(' ');
+        const serviceId = parts[1] ? parts[1].toLowerCase() : '';
+        const clientName = parts.slice(2).join(' ') || 'Cliente';
         return { type: 'quote', serviceId, clientName }
     }
     if (text.startsWith('/whatsapp')) {
-        const parts = text.split(' ')
-        const templateType = parts[1]
-        const clientName = parts.slice(2).join(' ') || 'Cliente'
+        const parts = trimmed.split(' ');
+        const templateType = parts[1] ? parts[1].toLowerCase() : '';
+        const clientName = parts.slice(2).join(' ') || 'Cliente';
         return { type: 'whatsapp', templateType, clientName }
     }
     if (text.startsWith('/servicios') || text.startsWith('/precios')) return { type: 'services' }
@@ -1158,7 +1130,7 @@ function setupDesignPilot() {
                 const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+                        "Authorization": `Bearer ${'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'}`,
                         "Content-Type": "application/json",
                         "HTTP-Referer": window.location.origin,
                         "X-Title": "D9 Marketing Dashboard"
@@ -1609,7 +1581,7 @@ SI EL USUARIO QUIERE BORRAR/ELIMINAR UN EVENTO DEL CALENDARIO:
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+                    "Authorization": `Bearer ${'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'}`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
