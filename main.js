@@ -365,7 +365,7 @@ function renderLeads(container) {
             </div>
         </section>
 
-        <!-- LEAD MODAL NINJA 2.0 (BRIEFING DETALLADO) -->
+        <!-- LEAD MODAL -->
         <div id="lead-modal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; justify-content:center; align-items:center;">
             <div class="modal-content" style="background:#1e293b; border-radius:16px; width:95%; max-width:800px; max-height:90vh; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid #334155; color: white; display:flex; flex-direction:column;">
                 
