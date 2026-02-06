@@ -11,7 +11,7 @@ const services = {
     logo: {
         id: 'logo',
         name: 'Diseño de Logotipo',
-        description: 'Creación de identidad visual. Incluye concepto creativo y entrega profesional.',
+        description: 'Creación de identidad visual profesional. Incluye concepto creativo.',
         price: '$3,500.00 MXN',
         priceBase: 3500,
         billingCycle: 'pago único',
@@ -62,6 +62,15 @@ const services = {
         billingCycle: 'pago único',
         includes: ['Layout profesional', 'Formatos para impresión y digital']
     },
+    recibos: {
+        id: 'recibos',
+        name: 'Diseño de Recibos/Recetas',
+        description: 'Formatos corporativos para notas o facturas.',
+        price: '$250.00 MXN',
+        priceBase: 250,
+        billingCycle: 'pago único',
+        includes: ['Diseño personalizado', 'Lineamientos D9']
+    },
     triptico: {
         id: 'triptico',
         name: 'Diseño de Tríptico / Díptico',
@@ -79,6 +88,15 @@ const services = {
         priceBase: 400,
         billingCycle: 'pago único',
         includes: ['Concepto visual impactante']
+    },
+    carpeta: {
+        id: 'carpeta',
+        name: 'Diseño de Carpeta Promocional',
+        description: 'Diseño para carpetas de presentación.',
+        price: '$450.00 MXN',
+        priceBase: 450,
+        billingCycle: 'pago único',
+        includes: ['Diseño exterior e interior']
     },
     webBasica: {
         id: 'webBasica',
@@ -107,6 +125,24 @@ const services = {
         billingCycle: 'pago único',
         includes: ['4 a 8 secciones', '7 a 10 correos electrónicos', 'Integración de audio/video']
     },
+    webMaster: {
+        id: 'webMaster',
+        name: 'Sitio Web Master',
+        description: 'Plataforma completa con bases de datos.',
+        price: '$20,000.00 MXN',
+        priceBase: 20000,
+        billingCycle: 'pago único',
+        includes: ['8 a 12 secciones', 'Correos ilimitados', 'Base de Datos']
+    },
+    mantenimiento: {
+        id: 'mantenimiento',
+        name: 'Mantenimiento Web',
+        description: 'Actualización y soporte web.',
+        price: '$500 - $2,000 MXN',
+        priceBase: 500,
+        billingCycle: 'mensual',
+        includes: ['Cambios de contenido', 'Soporte técnico']
+    },
     redesBasico: {
         id: 'redesBasico',
         name: 'Gestión Redes Social (Básico)',
@@ -124,6 +160,42 @@ const services = {
         priceBase: 5999,
         billingCycle: 'mensual',
         includes: ['3 redes sociales', '12 diseños mensuales', 'Stories', 'Análisis trimestral']
+    },
+    animacion: {
+        id: 'animacion',
+        name: 'Animación Digital',
+        description: 'Clips animados publicitarios.',
+        price: '$500 - $2,000 MXN',
+        priceBase: 1000,
+        billingCycle: 'pago único',
+        includes: ['Diseño de clips', 'Efectos visuales']
+    },
+    vinilHD: {
+        id: 'vinilHD',
+        name: 'Vinil HD Exterior',
+        description: 'Impresión y diseño de vinil de alta definición.',
+        price: '$350.00 MXN / m',
+        priceBase: 350,
+        billingCycle: 'pago único',
+        includes: ['Diseño a medida', 'Preparación HD']
+    },
+    vinilAuto: {
+        id: 'vinilAuto',
+        name: 'Vinil Automotriz',
+        description: 'Rotulación de vehículos.',
+        price: '$3,937.00 MXN',
+        priceBase: 3937,
+        billingCycle: 'pago único',
+        includes: ['Capó y costados', 'Diseño de rotulación']
+    },
+    anuncio: {
+        id: 'anuncio',
+        name: 'Diseño Anuncio Exterior',
+        description: 'Diseño para espectaculares o anuncios.',
+        price: '$300 - $1,000 MXN',
+        priceBase: 500,
+        billingCycle: 'pago único',
+        includes: ['Visualización exterior', 'Alta visibilidad']
     }
 }
 
@@ -257,17 +329,17 @@ const companyInfo = {
 
 const getServiceInfo = (id) => services[id] || null
 const listAllServices = () => Object.values(services)
-const generateQuote = (serviceId, clientName, duration = 1) => {
+const generateQuote = (serviceId, clientName, duration = 1, customPrice = null) => {
     const sId = serviceId.toLowerCase();
     const key = Object.keys(services).find(k => k.toLowerCase() === sId);
 
     if (key) {
-        if (key === 'metaAds') return budgetTemplates.metaAds(clientName, duration)
-        return budgetTemplates.generic(clientName, key, duration)
+        if (key === 'metaAds') return budgetTemplates.metaAds(clientName, duration, customPrice)
+        return budgetTemplates.generic(clientName, key, duration, customPrice)
     }
 
     const pkgKey = Object.keys(packages).find(k => k.toLowerCase() === sId);
-    if (pkgKey) return budgetTemplates.package(clientName, pkgKey)
+    if (pkgKey) return budgetTemplates.package(clientName, pkgKey) // Paquetes no suelen permitir cambio precio fácil
 
     return "Servicio no encontrado.";
 }
@@ -290,8 +362,20 @@ const detectCommand = (input) => {
     if (text.startsWith('/presupuesto')) {
         const parts = trimmed.split(' ');
         const serviceId = parts[1] ? parts[1].toLowerCase() : '';
-        const clientName = parts.slice(2).join(' ') || 'Cliente';
-        return { type: 'quote', serviceId, clientName }
+
+        let customPrice = null;
+        let nameIndex = 2;
+
+        // Detectar si el segundo argumento es un número (precio personalizado)
+        // Eliminamos $, comas y espacios antes de chequear si es número
+        const potentialPrice = parts[2] ? parts[2].replace(/[$,]/g, '') : '';
+        if (potentialPrice && !isNaN(potentialPrice) && potentialPrice.length > 0) {
+            customPrice = parseFloat(potentialPrice);
+            nameIndex = 3;
+        }
+
+        const clientName = parts.slice(nameIndex).join(' ') || 'Cliente';
+        return { type: 'quote', serviceId, clientName, customPrice }
     }
     if (text.startsWith('/whatsapp')) {
         const parts = trimmed.split(' ');
@@ -1494,7 +1578,7 @@ function setupConcierge() {
                 let responseContent = '';
 
                 if (command.type === 'quote') {
-                    responseContent = generateQuote(command.serviceId, command.clientName);
+                    responseContent = generateQuote(command.serviceId, command.clientName, 1, command.customPrice);
                 } else if (command.type === 'whatsapp') {
                     responseContent = generateWhatsApp(command.templateType, command.clientName);
                 } else if (command.type === 'services') {
