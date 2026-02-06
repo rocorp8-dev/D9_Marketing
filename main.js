@@ -192,6 +192,28 @@ function setupMobileMenu() {
             }
         });
     });
+
+    // Mobile Chat Toggle
+    const chatFab = document.getElementById('mobile-chat-toggle');
+    const conciergeSidebar = document.querySelector('.concierge-sidebar');
+    const closeChatBtn = document.getElementById('close-chat-btn');
+
+    if (chatFab) {
+        chatFab.addEventListener('click', () => {
+            // Cerrar menú principal si está abierto
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+
+            conciergeSidebar.classList.add('active');
+            if (window.lucide) window.lucide.createIcons();
+        });
+    }
+
+    if (closeChatBtn) {
+        closeChatBtn.addEventListener('click', () => {
+            conciergeSidebar.classList.remove('active');
+        });
+    }
 }
 
 function initNavigation() {

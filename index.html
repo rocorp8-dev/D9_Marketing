@@ -79,8 +79,10 @@
         <!-- IA Concierge Global (Lateral Derecho) -->
         <aside class="concierge-sidebar">
             <div class="card concierge-chat">
-                <div class="card-header">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
                     <h3><i data-lucide="message-square"></i> IA Concierge</h3>
+                    <button id="close-chat-btn" class="mobile-only"
+                        style="background:none; border:none; color:var(--text-main);"><i data-lucide="x"></i></button>
                 </div>
                 <div class="chat-display" id="concierge-messages">
                     <div class="message system">
@@ -88,9 +90,12 @@
                     </div>
                 </div>
                 <div class="quick-actions">
-                    <button class="action-pill" data-cmd="/servicios"><i data-lucide="file-text" style="width:12px"></i> Servicios</button>
-                    <button class="action-pill" data-cmd="/presupuesto metaAds "><i data-lucide="calculator" style="width:12px"></i> Presupuesto</button>
-                    <button class="action-pill" data-cmd="/whatsapp followUpQuote "><i data-lucide="message-circle" style="width:12px"></i> WhatsApp</button>
+                    <button class="action-pill" data-cmd="/servicios"><i data-lucide="file-text" style="width:12px"></i>
+                        Servicios</button>
+                    <button class="action-pill" data-cmd="/presupuesto metaAds "><i data-lucide="calculator"
+                            style="width:12px"></i> Presupuesto</button>
+                    <button class="action-pill" data-cmd="/whatsapp followUpQuote "><i data-lucide="message-circle"
+                            style="width:12px"></i> WhatsApp</button>
                 </div>
                 <div class="chat-input-area">
                     <input type="text" placeholder="Pregúntame lo que sea..." id="concierge-input">
@@ -99,6 +104,11 @@
             </div>
         </aside>
     </div>
+    <!-- Mobile Chat Toggle -->
+    <button id="mobile-chat-toggle" class="mobile-only chat-fab">
+        <i data-lucide="message-square"></i>
+    </button>
+
     <script src="main.js" type="module"></script>
 </body>
 
