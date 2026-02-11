@@ -631,16 +631,22 @@ export function setupDesignPilot() {
                 headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     "model": "google/gemini-2.0-flash-001",
-                    "messages": [{ "role": "system", "content": "Director Creativo Senior experto en Meta Ads. Genera: CONCEPTO, PALETA, ELEMENTOS, COPY, PROMPT_IMAGEN (inglés)." }, { "role": "user", "content": prompt }]
+                    "messages": [{ "role": "system", "content": "Director Creativo Senior experto en Meta Ads. Genera: CONCEPTO, PALETA, ELEMENTOS, COPY, PROMPT_IMAGEN (inglés descriptivo), KEYWORDS (3-5 palabras clave en inglés separadas por comas para búsqueda de stock fotos)." }, { "role": "user", "content": prompt }]
                 })
             });
             const data = await response.json();
             currentStrategy = data.choices[0].message.content;
-            // Extracción robusta del prompt de imagen (soporta PROMPT_IMAGEN, IMAGE_PROMPT, etc.)
+            // Extracción robusta de prompt y keywords para Unsplash
             const imagePromptMatch = currentStrategy.match(/(?:PROMPT_IMAGEN|IMAGE_PROMPT)[:\s*]*([\s\S]*?)(?=\n[A-Z_]+:|\n\n|$)/i);
+            const keywordsMatch = currentStrategy.match(/(?:KEYWORDS|PALABRAS_CLAVE)[:\s*]*([\s\S]*?)(?=\n[A-Z_]+:|\n\n|$)/i);
+
             if (imagePromptMatch && technicalPromptArea) {
-                technicalPromptArea.value = imagePromptMatch[1].trim()
-                    .replace(/^["']|["']$/g, ''); // Limpiar comillas si las hay
+                technicalPromptArea.value = imagePromptMatch[1].trim().replace(/^["']|["']$/g, '');
+            }
+
+            // Si el prompt es corto, lo guardamos como backup de keywords
+            if (keywordsMatch) {
+                promptArea.dataset.keywords = keywordsMatch[1].trim().replace(/\s+/g, ',');
             }
             strategyFullText.innerHTML = currentStrategy.replace(/\n/g, '<br>');
             strategyStatus.style.display = 'block';
@@ -662,11 +668,12 @@ export function setupDesignPilot() {
         try {
             const dimensions = metaFormat.value.split('x');
             const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
-            let imagePrompt = technicalPromptArea?.value.trim() || prompt;
 
-            // FUENTE DINÁMICA: Pollinations AI (Generación real basada en el prompt)
-            const seed = Math.floor(Math.random() * 1000000);
-            const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(imagePrompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+            // SOLUCIÓN PRÁCTICA Y EFICAZ: Unsplash por Keywords (Alta resolución y estabilidad)
+            // Extraemos keywords del dataset o usamos el prompt como fallback
+            const keywords = promptArea.dataset.keywords || encodeURIComponent(prompt.split(' ').slice(0, 3).join(','));
+            const seed = Math.floor(Math.random() * 1000);
+            const imageUrl = `https://source.unsplash.com/featured/${width}x${height}?${keywords}&sig=${seed}`;
 
             previewBox.innerHTML = `
                 <img id="generated-image" src="${imageUrl}" crossorigin="anonymous" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">
