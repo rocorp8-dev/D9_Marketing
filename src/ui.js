@@ -1134,10 +1134,60 @@ function processAIAction(data) {
         state.leads.push(newLead);
         logActivity(`IA creó prospecto: ${data.name}`, 'user-plus');
         saveState();
-        if (state.currentView === 'nav-leads') renderView('nav-leads');
-        else if (state.currentView === 'nav-dashboard') renderView('nav-dashboard');
+        refreshCurrentView();
+    } else if (data.action === 'update_lead') {
+        const index = state.leads.findIndex(l => l.id == data.id);
+        if (index !== -1) {
+            state.leads[index].status = data.status;
+            logActivity(`IA actualizó prospecto ID ${data.id} a ${data.status}`, 'edit');
+            saveState();
+            refreshCurrentView();
+        }
+    } else if (data.action === 'delete_lead') {
+        state.leads = state.leads.filter(l => l.id != data.id);
+        logActivity(`IA eliminó prospecto ID ${data.id}`, 'trash-2');
+        saveState();
+        refreshCurrentView();
+    } else if (data.action === 'schedule_event') {
+        const newEvent = {
+            id: Date.now(),
+            title: data.title,
+            date: data.date,
+            time: data.time,
+            type: 'meeting'
+        };
+        state.calendarEvents.push(newEvent);
+        logActivity(`IA programó evento: ${data.title}`, 'calendar');
+        saveState();
+        refreshCurrentView();
+    } else if (data.action === 'add_task') {
+        const newTask = {
+            id: Date.now(),
+            text: data.text,
+            completed: false
+        };
+        state.tasks.push(newTask);
+        logActivity(`IA agregó tarea: ${data.text}`, 'check-square');
+        saveState();
+        refreshCurrentView();
+    } else if (data.action === 'create_template') {
+        state.whatsappTemplates.push({
+            name: data.name,
+            text: data.text
+        });
+        logActivity(`IA creó plantilla: ${data.name}`, 'message-square');
+        saveState();
     }
-    // ... otros comandos ...
+}
+
+function refreshCurrentView() {
+    const container = document.getElementById('view-container');
+    if (!container) return;
+
+    // Refresh the view if it's one of the persistent ones
+    if (state.currentView === 'nav-dashboard') renderView('nav-dashboard');
+    else if (state.currentView === 'nav-leads') renderView('nav-leads');
+    else if (state.currentView === 'nav-calendar') renderView('nav-calendar');
 }
 
 export function appendMessage(role, text, isHtml = false) {
