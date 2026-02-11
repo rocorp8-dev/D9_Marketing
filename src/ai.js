@@ -76,7 +76,7 @@ INSTRUCCIONES TÉCNICAS (CRÍTICO):
 1. Responde siempre en español.
 2. **NO repitas el JSON en tu respuesta de texto.** La respuesta de texto debe ser 100% natural para el humano.
 3. Si confirmas que harás algo (agendar, borrar, crear), **DEBES incluír el bloque JSON correspondiente**. Sin el JSON, la acción NO ocurrirá.
-4. El bloque JSON debe ir al final de tu respuesta, encerrado en \` \` \` json ... \` \` \`.
+4. El bloque JSON debe ir al final de tu respuesta, encerrado en \`\`\`json ... \`\`\`.
 
 COMANDOS JSON PERMITIDOS:
 - { "action": "create_lead", "name": "...", "interest": "...", "brandDNA": { "sector": "...", "pain": "..." } }
@@ -89,13 +89,6 @@ COMANDOS JSON PERMITIDOS:
 - { "action": "add_task", "text": "..." }
 - { "action": "create_template", "name": "...", "text": "..." }
 `;
-
-    // Incluimos historial para tener memoria (máximo últimos 10 mensajes para no saturar tokens)
-    const history = state.chatHistory || [];
-    const recentHistory = history.slice(-10).map(m => ({
-        role: m.role,
-        content: m.content
-    }));
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
@@ -111,7 +104,6 @@ COMANDOS JSON PERMITIDOS:
                     "model": "google/gemini-2.0-flash-001",
                     "messages": [
                         { "role": "system", "content": systemPrompt },
-                        ...recentHistory,
                         { "role": "user", "content": text }
                     ],
                     "temperature": 0.5,

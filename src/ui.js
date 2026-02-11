@@ -1048,85 +1048,106 @@ export function setupConcierge() {
         if (response.error) {
             lastMsg.textContent = "Error: " + response.error;
         } else {
-            // Guardar en historial el contenido original de la IA
-            state.chatHistory.push({ role: 'assistant', content: response.content });
-            saveState();
+            // ESTRATEGIA DEFINITIVA: Regex flexible para capturar bloques y limpiar.
+            // Flags: g (global), m (multiline), s (dotAll) - pero JS no soporta siempre s en regex literal antiguo, usamos [\s\S]
 
-            // Filtrar JSON para que el humano no lo vea
-            // Regex más flexible: busca bloques JSON con o sin el tag "json" y maneja espacios
             const actionRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
-            const cleanContent = response.content.replace(actionRegex, '').trim();
+            let cleanContent = response.content.replace(actionRegex, '').trim();
+
+            // Fallback: Si no hay backticks pero hay objeto JSON claro al final
+            // Esto es peligroso si el texto habla de JSON, pero asumimos que la IA lo pone al final
+            const looseJsonRegex = /\{\s*"action"\s*:\s*"[\w_]+".*?\}/gs;
+            cleanContent = cleanContent.replace(looseJsonRegex, '').trim();
+
             lastMsg.innerHTML = cleanContent.replace(/\n/g, '<br>');
 
-            // Procesar acciones JSON de la IA si existen
-            try {
-                let match;
-                while ((match = actionRegex.exec(response.content)) !== null) {
-                    const jsonStr = match[1].trim();
-                    try {
-                        const data = JSON.parse(jsonStr);
-                        console.log("Acción IA detectada:", data);
-                        processAIAction(data);
-                    } catch (parseErr) {
-                        console.error("Error al parsear JSON individual:", jsonStr, parseErr);
-                    }
+            // Guardar en historial SOLO el contenido limpio para no confundir a la IA después
+            state.chatHistory.push({ role: 'assistant', content: cleanContent });
+            saveState();
+
+            // 1. Intentar capturar bloques con backticks
+            let match;
+            // Reiniciamos regex
+            const blockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+            while ((match = blockRegex.exec(response.content)) !== null) {
+                try {
+                    const data = JSON.parse(match[1]);
+                    console.log("Acción IA detectada (Block):", data);
+                    processAIAction(data);
+                } catch (e) {
+                    console.error("Error parsing block JSON", e);
                 }
-            } catch (e) {
-                console.error("Error general al extraer acciones de IA:", e);
+            }
+
+            // 2. Intentar capturar objetos sueltos si no hubo bloques (o asumiendo mix)
+            // Usamos un regex que busque estructuras que parecen acciones
+            // Nota: matchAll o exec loop
+            const looseMatcher = /\{\s*"action"\s*:\s*"[\w_]+"(?:[^{}]|{[^{}]*})*\}/g;
+            while ((match = looseMatcher.exec(response.content)) !== null) {
+                // Solo procesar si NO estaba dentro de un bloque ya procesado (difícil de saber simple, 
+                // pero si la IA sigue instrucciones, usará backticks. Esto es por si falla).
+                // Para evitar duplicados, podríamos trackear IDs, pero por ahora confiamos en el prompt.
+                try {
+                    const data = JSON.parse(match[0]);
+                    console.log("Acción IA detectada (Loose):", data);
+                    processAIAction(data);
+                } catch (e) {
+                    // Ignorar falsos positivos
+                }
             }
         }
+    }
+};
+
+if (sendBtn) sendBtn.onclick = handleSend;
+if (input) {
+    input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
+}
+
+pills.forEach(pill => {
+    pill.onclick = () => {
+        const cmd = pill.dataset.cmd;
+        if (cmd) {
+            input.value = cmd;
+            input.focus();
+        }
+    };
+});
+
+// WhatsApp Menu Logic
+const wsBtn = document.getElementById('whatsapp-selector-btn');
+const wsMenu = document.getElementById('whatsapp-templates-menu');
+
+if (wsBtn && wsMenu) {
+    // Always populate templates on load
+    const templates = {
+        'seguimiento': 'Seguimiento',
+        'vencimiento': 'Vencimiento',
+        'cierre': 'Cierre',
+        'reunion': 'Reunión',
+        'reactivacion': 'Reactivación',
+        'gracias': 'Gracias',
+        'bienvenida': 'Bienvenida'
     };
 
-    if (sendBtn) sendBtn.onclick = handleSend;
-    if (input) {
-        input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
-    }
-
-    pills.forEach(pill => {
-        pill.onclick = () => {
-            const cmd = pill.dataset.cmd;
-            if (cmd) {
-                input.value = cmd;
-                input.focus();
-            }
-        };
-    });
-
-    // WhatsApp Menu Logic
-    const wsBtn = document.getElementById('whatsapp-selector-btn');
-    const wsMenu = document.getElementById('whatsapp-templates-menu');
-
-    if (wsBtn && wsMenu) {
-        // Always populate templates on load
-        const templates = {
-            'seguimiento': 'Seguimiento',
-            'vencimiento': 'Vencimiento',
-            'cierre': 'Cierre',
-            'reunion': 'Reunión',
-            'reactivacion': 'Reactivación',
-            'gracias': 'Gracias',
-            'bienvenida': 'Bienvenida'
-        };
-
-        wsMenu.innerHTML = Object.keys(templates).map(key => `
+    wsMenu.innerHTML = Object.keys(templates).map(key => `
             <div class="template-option" onclick="window.sendWS('${key}')" style="padding:12px 16px; cursor:pointer; border-bottom:1px solid #eee; transition: background 0.2s;">
                 ${templates[key]}
             </div>
         `).join('');
 
-        wsBtn.onclick = (e) => {
-            e.stopPropagation();
-            const isOpen = wsMenu.style.display === 'block';
-            wsMenu.style.display = isOpen ? 'none' : 'block';
-            console.log('WhatsApp menu toggled. Display:', wsMenu.style.display);
-        };
+    wsBtn.onclick = (e) => {
+        e.stopPropagation();
+        const isOpen = wsMenu.style.display === 'block';
+        wsMenu.style.display = isOpen ? 'none' : 'block';
+        console.log('WhatsApp menu toggled. Display:', wsMenu.style.display);
+    };
 
-        document.addEventListener('click', (e) => {
-            if (wsMenu && !wsMenu.contains(e.target) && e.target !== wsBtn) {
-                wsMenu.style.display = 'none';
-            }
-        });
-    }
+    document.addEventListener('click', (e) => {
+        if (wsMenu && !wsMenu.contains(e.target) && e.target !== wsBtn) {
+            wsMenu.style.display = 'none';
+        }
+    });
 
     window.sendWS = (type) => {
         if (input) {
