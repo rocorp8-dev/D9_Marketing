@@ -636,8 +636,12 @@ export function setupDesignPilot() {
             });
             const data = await response.json();
             currentStrategy = data.choices[0].message.content;
-            const imagePromptMatch = currentStrategy.match(/PROMPT_IMAGEN[:\s]*([\s\S]*?)(?=\n\n|$)/i);
-            if (imagePromptMatch && technicalPromptArea) technicalPromptArea.value = imagePromptMatch[1].trim();
+            // Extracción robusta del prompt de imagen (soporta PROMPT_IMAGEN, IMAGE_PROMPT, etc.)
+            const imagePromptMatch = currentStrategy.match(/(?:PROMPT_IMAGEN|IMAGE_PROMPT)[:\s*]*([\s\S]*?)(?=\n[A-Z_]+:|\n\n|$)/i);
+            if (imagePromptMatch && technicalPromptArea) {
+                technicalPromptArea.value = imagePromptMatch[1].trim()
+                    .replace(/^["']|["']$/g, ''); // Limpiar comillas si las hay
+            }
             strategyFullText.innerHTML = currentStrategy.replace(/\n/g, '<br>');
             strategyStatus.style.display = 'block';
             strategyDetails.style.display = 'block';
@@ -659,7 +663,10 @@ export function setupDesignPilot() {
             const dimensions = metaFormat.value.split('x');
             const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
             let imagePrompt = technicalPromptArea?.value.trim() || prompt;
-            const imageUrl = `https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=${width}&h=${height}&q=80`;
+
+            // FUENTE DINÁMICA: Pollinations AI (Generación real basada en el prompt)
+            const seed = Math.floor(Math.random() * 1000000);
+            const imageUrl = `https://pollinations.ai/p/${encodeURIComponent(imagePrompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
 
             previewBox.innerHTML = `
                 <img id="generated-image" src="${imageUrl}" crossorigin="anonymous" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">
@@ -1090,7 +1097,7 @@ export function setupConcierge() {
                     const data = JSON.parse(jsonStr);
                     // Firma única: acción + texto/id normalizado
                     const signature = `${data.action}_${(data.text || data.id || data.name || '').toString().toLowerCase().trim()}`;
-                    
+
                     if (!processedSignatures.has(signature)) {
                         processedSignatures.add(signature);
                         actionsToExecute.push(data);
