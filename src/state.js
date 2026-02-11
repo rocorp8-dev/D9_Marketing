@@ -12,7 +12,8 @@ export const state = {
     whatsappTemplates: [],
     theme: 'light', // 'light' or 'dark'
     notificationPermission: false,
-    notifiedEvents: {} // {eventId: {notified15: bool, notified5: bool}}
+    notifiedEvents: {}, // {eventId: {notified15: bool, notified5: bool}}
+    chatHistory: [] // Conversación con la IA
 };
 
 // Cargar estado inicial
@@ -98,6 +99,7 @@ export async function saveState() {
             theme: state.theme,
             notificationPermission: state.notificationPermission,
             notifiedEvents: state.notifiedEvents,
+            chatHistory: state.chatHistory,
             updatedAt: new Date().toISOString()
         };
         const jsonStr = JSON.stringify(dataToSave);

@@ -53,42 +53,26 @@ PERSONALIDAD Y TONO:
 - **Lenguaje Positivo:** Evitas el "no se puede". Siempre ofreces una alternativa: "No podemos hacer X, pero lo que podemos hacer es Y".
 - **Responsabilidad Total:** Si prometes algo, asegúrate de que el sistema lo registre.
 
-PROTOCOLOS DE INTERACCIÓN (Protocolo C-E-D-A):
-1. **C**almar: Escucha y valida las emociones.
-2. **E**mpatizar: Conecta con la necesidad del usuario.
-3. **D**isculparse: Si algo falla, ofrece una disculpa sincera y profesional.
-4. **A**sumir: Toma el mando para encontrar la solución técnica.
-
 VISIÓN ESTRATÉGICA (CX & CRM):
 - **Customer Centric:** El cliente es el centro. Cada lead es una relación a largo plazo, no una transacción.
-- **CRM como Brújula:** Utilizas la data para anticiparte. Si detectas datos duplicados o incompletos, sugieres una "Limpieza de Datos" (Data Cleansing).
-- **Métricas de Éxito:** Promueves el seguimiento de NPS (Net Promoter Score) y CSAT para medir la satisfacción.
+- **CRM como Brújula:** Utilizas la data para anticiparte.
 
 LISTA DE SERVICIOS ADMISIBLES:
 ${listAllServices().map(s => `- ${s.name}: ${s.price} (${s.description})`).join('\n')}
 
-PLANTILLAS DE WHATSAPP DISPONIBLES:
-- Seguimiento, Vencimiento, Cierre, Reunión, Reactivación, Gracias, Bienvenida.
+CRM ACTUAL:
+${state.leads.map(l => `- **ID: ${l.id}** | **${l.name}** [Status: ${l.status}, Interés: ${l.interest}]`).join('\n')}
 
 HOY ES: ${new Intl.DateTimeFormat('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date())}
 HORA LOCAL: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
 
-CRM ACTUAL:
-${state.leads.map(l => `- **ID: ${l.id}** | **${l.name}** [Status: ${l.status}, Interés: ${l.interest}]
-  Sector: ${l.brandDNA?.sector || 'N/A'}, Dolor: ${l.brandDNA?.pain || 'N/A'}`).join('\n')}
+INSTRUCCIONES TÉCNICAS (CRÍTICO):
+1. Responde siempre en español.
+2. **NO repitas el JSON en tu respuesta de texto.** La respuesta de texto debe ser 100% natural para el humano.
+3. Si necesitas ejecutar una acción (crear lead, agendar cita...), incluye el bloque JSON estrictamente al final de tu respuesta, separado por una línea y encerrado en \` \` \` json ... \` \` \`.
+4. El sistema filtrará automáticamente ese bloque para que el usuario no lo vea, pero tú DEBES generarlo para que las cosas sucedan.
 
-CALENDARIO:
-${state.calendarEvents.map(e => `- [ID: ${e.id}] ${e.date} ${e.time}: ${e.title}`).join('\n')}
-
-TAREAS:
-${state.tasks.filter(t => !t.completed).map(t => `- [${t.id}] ${t.text}`).join('\n')}
-
-INSTRUCCIONES TÉCNICAS:
-1. Responde siempre en español con elegancia ejecutiva.
-2. Usa bloques de código JSON para realizar acciones en el sistema.
-3. Si el usuario está frustrado, aplica C-E-D-A antes de cualquier acción técnica.
-
-COMANDOS JSON:
+COMANDOS JSON PERMITIDOS:
 - { "action": "create_lead", "name": "...", "interest": "...", "brandDNA": { "sector": "...", "pain": "..." } }
 - { "action": "update_lead", "id": 123, "status": "hot/warm/cold" }
 - { "action": "delete_lead", "id": 123 }
@@ -96,6 +80,13 @@ COMANDOS JSON:
 - { "action": "add_task", "text": "..." }
 - { "action": "create_template", "name": "...", "text": "..." }
 `;
+
+    // Incluimos historial para tener memoria (máximo últimos 10 mensajes para no saturar tokens)
+    const history = state.chatHistory || [];
+    const recentHistory = history.slice(-10).map(m => ({
+        role: m.role,
+        content: m.content
+    }));
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
@@ -111,9 +102,10 @@ COMANDOS JSON:
                     "model": "google/gemini-2.0-flash-001",
                     "messages": [
                         { "role": "system", "content": systemPrompt },
+                        ...recentHistory,
                         { "role": "user", "content": text }
                     ],
-                    "temperature": 0.7,
+                    "temperature": 0.5,
                     "max_tokens": 800
                 })
             });

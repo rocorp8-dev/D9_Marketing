@@ -1038,14 +1038,24 @@ export function setupConcierge() {
 
         // Si no es comando local, va a la IA
         appendMessage('system', '...', false); // Placeholder
-        const messages = document.getElementById('concierge-messages');
-        const lastMsg = messages.lastElementChild;
+        const messagesContainer = document.getElementById('concierge-messages');
+        const lastMsg = messagesContainer.lastElementChild;
+
+        // Guardar en historial local el mensaje del usuario
+        state.chatHistory.push({ role: 'user', content: text });
 
         const response = await sendMessageToAI(text, state);
         if (response.error) {
             lastMsg.textContent = "Error: " + response.error;
         } else {
-            lastMsg.innerHTML = response.content.replace(/\n/g, '<br>');
+            // Guardar en historial el contenido original de la IA
+            state.chatHistory.push({ role: 'assistant', content: response.content });
+            saveState();
+
+            // Filtrar JSON para que el humano no lo vea
+            const cleanContent = response.content.replace(/```json\n([\s\S]*?)\n```/g, '').trim();
+            lastMsg.innerHTML = cleanContent.replace(/\n/g, '<br>');
+
             // Procesar acciones JSON de la IA si existen
             try {
                 const jsonMatches = response.content.match(/```json\n([\s\S]*?)\n```/g);
