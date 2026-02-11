@@ -1053,21 +1053,26 @@ export function setupConcierge() {
             saveState();
 
             // Filtrar JSON para que el humano no lo vea
-            const cleanContent = response.content.replace(/```json\n([\s\S]*?)\n```/g, '').trim();
+            // Regex más flexible: busca bloques JSON con o sin el tag "json" y maneja espacios
+            const actionRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+            const cleanContent = response.content.replace(actionRegex, '').trim();
             lastMsg.innerHTML = cleanContent.replace(/\n/g, '<br>');
 
             // Procesar acciones JSON de la IA si existen
             try {
-                const jsonMatches = response.content.match(/```json\n([\s\S]*?)\n```/g);
-                if (jsonMatches) {
-                    jsonMatches.forEach(match => {
-                        const jsonStr = match.replace(/```json\n|\n```/g, '');
+                let match;
+                while ((match = actionRegex.exec(response.content)) !== null) {
+                    const jsonStr = match[1].trim();
+                    try {
                         const data = JSON.parse(jsonStr);
+                        console.log("Acción IA detectada:", data);
                         processAIAction(data);
-                    });
+                    } catch (parseErr) {
+                        console.error("Error al parsear JSON individual:", jsonStr, parseErr);
+                    }
                 }
             } catch (e) {
-                console.error("Error al procesar JSON de IA:", e);
+                console.error("Error general al extraer acciones de IA:", e);
             }
         }
     };
@@ -1173,6 +1178,13 @@ function processAIAction(data) {
     } else if (data.action === 'delete_event') {
         state.calendarEvents = state.calendarEvents.filter(e => e.id != data.id);
         logActivity(`IA eliminó evento ID ${data.id}`, 'calendar-x');
+        saveState();
+        refreshCurrentView();
+    } else if (data.action === 'delete_events_for_day') {
+        const initialCount = state.calendarEvents.length;
+        state.calendarEvents = state.calendarEvents.filter(e => e.date !== data.date);
+        const deletedCount = initialCount - state.calendarEvents.length;
+        logActivity(`IA eliminó ${deletedCount} eventos del día ${data.date}`, 'calendar-x');
         saveState();
         refreshCurrentView();
     } else if (data.action === 'clear_calendar') {

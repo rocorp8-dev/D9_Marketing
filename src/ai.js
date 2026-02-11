@@ -75,8 +75,8 @@ HORA LOCAL: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: 
 INSTRUCCIONES TÉCNICAS (CRÍTICO):
 1. Responde siempre en español.
 2. **NO repitas el JSON en tu respuesta de texto.** La respuesta de texto debe ser 100% natural para el humano.
-3. Si necesitas ejecutar una acción (crear lead, agendar cita...), incluye el bloque JSON estrictamente al final de tu respuesta, separado por una línea y encerrado en \` \` \` json ... \` \` \`.
-4. El sistema filtrará automáticamente ese bloque para que el usuario no lo vea, pero tú DEBES generarlo para que las cosas sucedan.
+3. Si confirmas que harás algo (agendar, borrar, crear), **DEBES incluír el bloque JSON correspondiente**. Sin el JSON, la acción NO ocurrirá.
+4. El bloque JSON debe ir al final de tu respuesta, encerrado en \` \` \` json ... \` \` \`.
 
 COMANDOS JSON PERMITIDOS:
 - { "action": "create_lead", "name": "...", "interest": "...", "brandDNA": { "sector": "...", "pain": "..." } }
@@ -84,6 +84,7 @@ COMANDOS JSON PERMITIDOS:
 - { "action": "delete_lead", "id": 123 }
 - { "action": "schedule_event", "title": "...", "date": "YYYY-MM-DD", "time": "HH:MM" }
 - { "action": "delete_event", "id": 123 }
+- { "action": "delete_events_for_day", "date": "YYYY-MM-DD" }
 - { "action": "clear_calendar" }
 - { "action": "add_task", "text": "..." }
 - { "action": "create_template", "name": "...", "text": "..." }
