@@ -660,26 +660,81 @@ export function setupDesignPilot() {
 
     imageBtn.addEventListener('click', async () => {
         const prompt = promptArea.value.trim();
+        const techPrompt = technicalPromptArea?.value.trim() || prompt;
         if (!prompt) return alert("Describe qué necesitas.");
+
         imageBtn.disabled = true;
         imageBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando...`;
         if (window.lucide) window.lucide.createIcons();
 
+        console.log("--- DEBUG DESIGN PILOT ---");
+        console.log("Prompt:", prompt);
+        console.log("Tech Prompt:", techPrompt);
+
         try {
             const dimensions = metaFormat.value.split('x');
             const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
+            const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
 
-            // SOLUCIÓN PRÁCTICA Y EFICAZ: Unsplash por Keywords (Alta resolución y estabilidad)
-            // Extraemos keywords del dataset o usamos el prompt como fallback
-            const keywords = promptArea.dataset.keywords || encodeURIComponent(prompt.split(' ').slice(0, 3).join(','));
-            const seed = Math.floor(Math.random() * 1000);
-            const imageUrl = `https://source.unsplash.com/featured/${width}x${height}?${keywords}&sig=${seed}`;
+            if (!apiKey) {
+                console.error("VITE_OPENROUTER_API_KEY no detectada.");
+                throw new Error("API Key missing");
+            }
+
+            // LLAMADA A FLUX VIA OPENROUTER (Refinada)
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": window.location.origin,
+                    "X-Title": "D9 Marketing Design Pilot"
+                },
+                body: JSON.stringify({
+                    "model": "black-forest-labs/flux-1-schnell",
+                    "messages": [{ "role": "user", "content": techPrompt }],
+                    "modalities": ["image"]
+                })
+            });
+
+            const data = await response.json();
+            console.log("OpenRouter Response Data:", data);
+
+            if (data.error) {
+                console.error("Error de OpenRouter:", data.error);
+                throw new Error(data.error.message || "Error en API");
+            }
+
+            let imageUrl = '';
+
+            // 1. Intentar capturar desde el array de imágenes (formato estándar de OpenRouter para imágenes)
+            if (data.choices?.[0]?.message?.images?.[0]) {
+                const imgObj = data.choices[0].message.images[0];
+                imageUrl = typeof imgObj === 'string' ? imgObj : (imgObj.url || imgObj.image_url?.url);
+                console.log("Imagen detectada en array 'images':", imageUrl);
+            }
+            // 2. Intentar capturar desde el content si la IA devolvió el data-url directamente
+            else if (data.choices?.[0]?.message?.content?.includes('data:image')) {
+                const b64Match = data.choices[0].message.content.match(/data:image\/[a-zA-Z]+;base64,[^"'\s]*/);
+                if (b64Match) {
+                    imageUrl = b64Match[0];
+                    console.log("Base64 detectado en 'content'");
+                }
+            }
+
+            // FALLBACK: Si falla la IA o no hay imagen, usamos LoremFlickr (Estable)
+            if (!imageUrl) {
+                console.warn("Flux no devolvió imagen válida, usando fallback visual.");
+                const keywords = promptArea.dataset.keywords || encodeURIComponent(prompt.split(' ').slice(0, 3).join(','));
+                const seed = Math.floor(Math.random() * 1000);
+                imageUrl = `https://loremflickr.com/${width}/${height}/${keywords || 'marketing,tech'}?lock=${seed}`;
+            }
 
             previewBox.innerHTML = `
-                <img id="generated-image" src="${imageUrl}" crossorigin="anonymous" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">
+                <img id="generated-image" src="${imageUrl}" style="width:100%; height:100%; object-fit:contain; border-radius:12px;" onerror="this.src='https://placehold.co/${width}x${height}?text=Reintente+Generar'">
             `;
 
-            // Create buttons container below preview box
+            // Mantener lógica de botones de acción
             let actionsContainer = document.getElementById('design-actions-container');
             if (!actionsContainer) {
                 actionsContainer = document.createElement('div');
@@ -696,14 +751,18 @@ export function setupDesignPilot() {
                     <i data-lucide="external-link"></i> Arena AI
                 </a>
             `;
+
             setTimeout(() => {
                 document.getElementById('download-btn')?.addEventListener('click', () => {
                     const canvas = document.createElement('canvas');
                     const img = document.getElementById('generated-image');
-                    canvas.width = img.naturalWidth;
-                    canvas.height = img.naturalHeight;
+                    if (!img) return;
+
+                    canvas.width = img.naturalWidth || width;
+                    canvas.height = img.naturalHeight || height;
                     const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
                     const link = document.createElement('a');
                     link.download = `D9_Asset_${Date.now()}.png`;
                     link.href = canvas.toDataURL('image/png');
@@ -712,9 +771,10 @@ export function setupDesignPilot() {
                 if (window.lucide) window.lucide.createIcons();
                 updateStrategyOverlay();
             }, 500);
+
         } catch (e) {
-            console.error(e);
-            previewBox.innerHTML = "Error al generar imagen.";
+            console.error("Error en generación de imagen:", e);
+            previewBox.innerHTML = `<div style="color:var(--accent-primary); padding:20px;">Error al conectar con Flux. Intenta de nuevo.</div>`;
         }
         imageBtn.disabled = false;
         imageBtn.innerHTML = `<i data-lucide="image"></i> Generar Imagen`;
