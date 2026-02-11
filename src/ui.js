@@ -1096,67 +1096,67 @@ export function setupConcierge() {
                 }
             }
         }
+    };
+
+    if (sendBtn) sendBtn.onclick = handleSend;
+    if (input) {
+        input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
     }
-};
 
-if (sendBtn) sendBtn.onclick = handleSend;
-if (input) {
-    input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
-}
+    pills.forEach(pill => {
+        pill.onclick = () => {
+            const cmd = pill.dataset.cmd;
+            if (cmd) {
+                input.value = cmd;
+                input.focus();
+            }
+        };
+    });
 
-pills.forEach(pill => {
-    pill.onclick = () => {
-        const cmd = pill.dataset.cmd;
-        if (cmd) {
-            input.value = cmd;
-            input.focus();
-        }
-    };
-});
+    // WhatsApp Menu Logic
+    const wsBtn = document.getElementById('whatsapp-selector-btn');
+    const wsMenu = document.getElementById('whatsapp-templates-menu');
 
-// WhatsApp Menu Logic
-const wsBtn = document.getElementById('whatsapp-selector-btn');
-const wsMenu = document.getElementById('whatsapp-templates-menu');
+    if (wsBtn && wsMenu) {
+        // Always populate templates on load
+        const templates = {
+            'seguimiento': 'Seguimiento',
+            'vencimiento': 'Vencimiento',
+            'cierre': 'Cierre',
+            'reunion': 'Reunión',
+            'reactivacion': 'Reactivación',
+            'gracias': 'Gracias',
+            'bienvenida': 'Bienvenida'
+        };
 
-if (wsBtn && wsMenu) {
-    // Always populate templates on load
-    const templates = {
-        'seguimiento': 'Seguimiento',
-        'vencimiento': 'Vencimiento',
-        'cierre': 'Cierre',
-        'reunion': 'Reunión',
-        'reactivacion': 'Reactivación',
-        'gracias': 'Gracias',
-        'bienvenida': 'Bienvenida'
-    };
-
-    wsMenu.innerHTML = Object.keys(templates).map(key => `
+        wsMenu.innerHTML = Object.keys(templates).map(key => `
             <div class="template-option" onclick="window.sendWS('${key}')" style="padding:12px 16px; cursor:pointer; border-bottom:1px solid #eee; transition: background 0.2s;">
                 ${templates[key]}
             </div>
         `).join('');
 
-    wsBtn.onclick = (e) => {
-        e.stopPropagation();
-        const isOpen = wsMenu.style.display === 'block';
-        wsMenu.style.display = isOpen ? 'none' : 'block';
-        console.log('WhatsApp menu toggled. Display:', wsMenu.style.display);
-    };
+        wsBtn.onclick = (e) => {
+            e.stopPropagation();
+            const isOpen = wsMenu.style.display === 'block';
+            wsMenu.style.display = isOpen ? 'none' : 'block';
+            console.log('WhatsApp menu toggled. Display:', wsMenu.style.display);
+        };
 
-    document.addEventListener('click', (e) => {
-        if (wsMenu && !wsMenu.contains(e.target) && e.target !== wsBtn) {
-            wsMenu.style.display = 'none';
-        }
-    });
+        document.addEventListener('click', (e) => {
+            if (wsMenu && !wsMenu.contains(e.target) && e.target !== wsBtn) {
+                wsMenu.style.display = 'none';
+            }
+        });
 
-    window.sendWS = (type) => {
-        if (input) {
-            input.value = `/whatsapp ${type} `;
-            input.focus();
-            if (wsMenu) wsMenu.style.display = 'none';
-        }
-    };
-} // Fin if (wsBtn && wsMenu)
+        window.sendWS = (type) => {
+            if (input) {
+                input.value = `/whatsapp ${type} `;
+                input.focus();
+                if (wsMenu) wsMenu.style.display = 'none';
+            }
+        };
+    }
+}
 
 function processAIAction(data) {
     if (data.action === 'create_lead') {
