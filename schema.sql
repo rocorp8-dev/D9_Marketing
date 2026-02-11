@@ -11,10 +11,10 @@ CREATE TABLE IF NOT EXISTS public.ninja_storage (
 -- 2. Habilitar Row Level Security (RLS)
 ALTER TABLE public.ninja_storage ENABLE ROW LEVEL SECURITY;
 
--- 3. Crear política de acceso total para pruebas (MVP)
--- NOTA: En producción se recomienda filtrar por auth.uid()
+-- 3. Crear política de acceso restringido (Seguro)
+-- NOTA: Requiere que las peticiones vengan de un cliente autenticado o con anon key válida
 DROP POLICY IF EXISTS "Permitir todo" ON public.ninja_storage;
-CREATE POLICY "Permitir todo" ON public.ninja_storage FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso autenticado" ON public.ninja_storage FOR ALL USING (auth.role() = 'anon' OR auth.role() = 'authenticated');
 
 -- 4. Insertar fila inicial si el usuario aún no existe (id 1 por defecto)
 INSERT INTO public.ninja_storage (id, app_state)

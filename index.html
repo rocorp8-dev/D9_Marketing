@@ -94,8 +94,13 @@
                         Servicios</button>
                     <button class="action-pill" data-cmd="/presupuesto logo "><i data-lucide="calculator"
                             style="width:12px"></i> Presupuesto</button>
-                    <button class="action-pill" data-cmd="/whatsapp followUpQuote "><i data-lucide="message-circle"
-                            style="width:12px"></i> WhatsApp</button>
+                    <div style="position: relative;">
+                        <button class="action-pill" id="whatsapp-selector-btn"><i data-lucide="message-circle"
+                                style="width:12px"></i> WhatsApp</button>
+                        <div id="whatsapp-templates-menu" class="templates-menu" style="display:none;">
+                            <!-- Plantillas dinámicas aquí -->
+                        </div>
+                    </div>
                 </div>
                 <div class="chat-input-area">
                     <input type="text" placeholder="Pregúntame lo que sea..." id="concierge-input">

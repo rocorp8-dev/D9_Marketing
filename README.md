@@ -1,43 +1,56 @@
-# D9 Marketing - Centro de Comando
+# D9 Marketing - Centro de Comando 🚀
 
-Dashboard ejecutivo de marketing con IA integrada para gestión de prospectos, calendario y estrategias de campaña.
+Dashboard ejecutivo de marketing potenciado por IA para la gestión integral de D9 Marketing.
 
-## Características
+## 🔥 Características Principales
 
-- 📊 **Dashboard Dinámico** con métricas en tiempo real
-- 🤖 **IA Concierge** para gestión automatizada de leads y tareas
-- 📅 **Calendario Integrado** con recordatorios
-- 🎨 **Co-piloto de Diseño** con generación de estrategias e imágenes
-- 💾 **Persistencia Local** con localStorage
+- **📊 Dashboard en Tiempo Real**: Métricas clave y estado del negocio.
+- **🤖 IA Concierge (Director)**: Asistente virtual con memoria de contexto y gestión de tareas.
+- **📅 Calendario Sincronizado**: Gestión de eventos y recordatorios.
+- **🎨 Co-piloto de Diseño**: Generación de estrategias y **imágenes de alta calidad** (FLUX.1).
+- **☁️ Nube Sincronizada**: Datos persistentes en Supabase.
+- **💬 WhatsApp Power Tools**: Selector de plantillas y generador de mensajes al instante.
 
-## Tecnologías
+## 🛠️ Tecnologías
 
-- Vanilla JavaScript (ES6+)
-- HTML5 + CSS3
-- OpenRouter API (Gemini 2.0 Flash)
-- Lucide Icons
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3 Moderno (Glassmorphism).
+- **Build Tool**: Vite.
+- **Backend/DB**: Supabase.
+- **IA**: OpenRouter (Gemini 2.0 Flash) + Replicate (FLUX.1 Pro).
+- **Iconos**: Lucide Icons.
 
-## Instalación Local
+## 🚀 Instalación y Uso
 
-```bash
-# Clonar el repositorio
-git clone https://github.com/[tu-usuario]/d9-marketing-dashboard.git
+1.  **Clonar el repositorio**:
+    ```bash
+    git clone https://github.com/[tu-usuario]/d9-marketing-dashboard.git
+    cd d9-marketing-dashboard
+    ```
 
-# Navegar al directorio
-cd d9-marketing-dashboard
+2.  **Instalar dependencias**:
+    ```bash
+    npm install
+    ```
 
-# Abrir con un servidor local (ej: Live Server en VS Code)
-# O usar Python:
-python -m http.server 8000
-```
+3.  **Configurar variables de entorno**:
+    Crea un archivo `.env` en la raíz con:
+    ```env
+    VITE_SUPABASE_URL=tu_url_supabase
+    VITE_SUPABASE_ANON_KEY=tu_key_supabase
+    VITE_OPENROUTER_API_KEY=tu_key_openrouter
+    VITE_REPLICATE_API_TOKEN=tu_key_replicate
+    ```
 
-## Uso
+4.  **Iniciar servidor de desarrollo**:
+    ```bash
+    npm run dev
+    ```
 
-1. Abre la aplicación en tu navegador
-2. Gestiona tus prospectos desde la vista "Prospectos"
-3. Usa la IA Concierge para automatizar tareas
-4. Genera estrategias de marketing con el Co-piloto de Diseño
+5.  **Construir para producción**:
+    ```bash
+    npm run build
+    ```
 
-## Licencia
+## 📄 Licencia
 
-Propietario - D9 Marketing © 2026
+D9 Marketing © 2026. Todos los derechos reservados.
