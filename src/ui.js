@@ -1065,34 +1065,47 @@ export function setupConcierge() {
             state.chatHistory.push({ role: 'assistant', content: cleanContent });
             saveState();
 
-            // 1. Intentar capturar bloques con backticks
-            let match;
-            const uniqueActions = new Set();
-
-            // Reiniciamos regex
+            // 1. Capturar todos los bloques JSON potenciales
+            const rawJsonBlocks = [];
             const blockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+            let match;
             while ((match = blockRegex.exec(response.content)) !== null) {
-                uniqueActions.add(match[1].trim());
+                rawJsonBlocks.push(match[1].trim());
             }
 
-            // 2. Intentar capturar objetos sueltos SOLO si no hubo bloques válidos
-            if (uniqueActions.size === 0) {
+            // Fallback a loose matching si no hay bloques de código
+            if (rawJsonBlocks.length === 0) {
                 const looseMatcher = /\{\s*"action"\s*:\s*"[\w_]+"(?:[^{}]|{[^{}]*})*\}/g;
                 while ((match = looseMatcher.exec(response.content)) !== null) {
-                    uniqueActions.add(match[0].trim());
+                    rawJsonBlocks.push(match[0].trim());
                 }
             }
 
-            // 3. Procesar cada acción única una sola vez
-            uniqueActions.forEach(jsonStr => {
+            // 2. De-duplicación Semántica y Ejecución Batch
+            const actionsToExecute = [];
+            const processedSignatures = new Set();
+
+            rawJsonBlocks.forEach(jsonStr => {
                 try {
                     const data = JSON.parse(jsonStr);
-                    console.log("Acción IA detectada:", data);
-                    processAIAction(data);
+                    // Firma única: acción + texto/id normalizado
+                    const signature = `${data.action}_${(data.text || data.id || data.name || '').toString().toLowerCase().trim()}`;
+                    
+                    if (!processedSignatures.has(signature)) {
+                        processedSignatures.add(signature);
+                        actionsToExecute.push(data);
+                    }
                 } catch (e) {
-                    console.error("Error al parsear JSON único:", jsonStr, e);
+                    console.error("Error al parsear bloque JSON:", e);
                 }
             });
+
+            // 3. Ejecutar de forma transaccional (un solo save/refresh al final)
+            if (actionsToExecute.length > 0) {
+                actionsToExecute.forEach(data => processAIAction(data, false));
+                saveState();
+                refreshCurrentView();
+            }
         }
     };
 
@@ -1156,10 +1169,13 @@ export function setupConcierge() {
     }
 }
 
-function processAIAction(data) {
+function processAIAction(data, shouldRefresh = true) {
+    // Generador de ID único robusto (Timestamp + Random)
+    const generateUID = () => Date.now() + Math.floor(Math.random() * 1000);
+
     if (data.action === 'create_lead') {
         const newLead = {
-            id: Date.now(),
+            id: generateUID(),
             name: data.name,
             interest: data.interest || 'Por definir',
             status: 'cold',
@@ -1167,24 +1183,21 @@ function processAIAction(data) {
         };
         state.leads.push(newLead);
         logActivity(`IA creó prospecto: ${data.name}`, 'user-plus');
-        saveState();
-        refreshCurrentView();
+        if (shouldRefresh) { saveState(); refreshCurrentView(); }
     } else if (data.action === 'update_lead') {
         const index = state.leads.findIndex(l => l.id == data.id);
         if (index !== -1) {
             state.leads[index].status = data.status;
             logActivity(`IA actualizó prospecto ID ${data.id} a ${data.status}`, 'edit');
-            saveState();
-            refreshCurrentView();
+            if (shouldRefresh) { saveState(); refreshCurrentView(); }
         }
     } else if (data.action === 'delete_lead') {
         state.leads = state.leads.filter(l => l.id != data.id);
         logActivity(`IA eliminó prospecto ID ${data.id}`, 'trash-2');
-        saveState();
-        refreshCurrentView();
+        if (shouldRefresh) { saveState(); refreshCurrentView(); }
     } else if (data.action === 'schedule_event') {
         const newEvent = {
-            id: Date.now(),
+            id: generateUID(),
             title: data.title,
             date: data.date,
             time: data.time,
@@ -1192,49 +1205,48 @@ function processAIAction(data) {
         };
         state.calendarEvents.push(newEvent);
         logActivity(`IA programó evento: ${data.title}`, 'calendar');
-        saveState();
-        refreshCurrentView();
+        if (shouldRefresh) { saveState(); refreshCurrentView(); }
     } else if (data.action === 'delete_event') {
         state.calendarEvents = state.calendarEvents.filter(e => e.id != data.id);
         logActivity(`IA eliminó evento ID ${data.id}`, 'calendar-x');
-        saveState();
-        refreshCurrentView();
+        if (shouldRefresh) { saveState(); refreshCurrentView(); }
     } else if (data.action === 'delete_events_for_day') {
         const initialCount = state.calendarEvents.length;
         state.calendarEvents = state.calendarEvents.filter(e => e.date !== data.date);
         const deletedCount = initialCount - state.calendarEvents.length;
         logActivity(`IA eliminó ${deletedCount} eventos del día ${data.date}`, 'calendar-x');
-        saveState();
-        refreshCurrentView();
+        if (shouldRefresh) { saveState(); refreshCurrentView(); }
     } else if (data.action === 'clear_calendar') {
         state.calendarEvents = [];
         logActivity(`IA limpió el calendario`, 'trash-2');
-        saveState();
-        refreshCurrentView();
+        if (shouldRefresh) { saveState(); refreshCurrentView(); }
     } else if (data.action === 'add_task') {
-        // Evitar duplicados exactos si la tarea ya existe (idempotencia)
-        const exists = state.tasks.find(t => t.text.toLowerCase() === data.text.toLowerCase() && !t.completed);
+        // Evitar duplicados exactos con limpieza de espacios y capitalización
+        const cleanText = data.text.trim();
+        const exists = state.tasks.find(t =>
+            t.text.trim().toLowerCase() === cleanText.toLowerCase() && !t.completed
+        );
+
         if (exists) {
-            console.log("Tarea duplicada ignorada:", data.text);
+            console.log("Tarea duplicada ignorada:", cleanText);
             return;
         }
 
         const newTask = {
-            id: Date.now(),
-            text: data.text,
+            id: generateUID(),
+            text: cleanText,
             completed: false
         };
         state.tasks.push(newTask);
-        logActivity(`IA agregó tarea: ${data.text}`, 'check-square');
-        saveState();
-        refreshCurrentView();
+        logActivity(`IA agregó tarea: ${cleanText}`, 'check-square');
+        if (shouldRefresh) { saveState(); refreshCurrentView(); }
     } else if (data.action === 'create_template') {
         state.whatsappTemplates.push({
             name: data.name,
             text: data.text
         });
         logActivity(`IA creó plantilla: ${data.name}`, 'message-square');
-        saveState();
+        if (shouldRefresh) saveState();
     }
 }
 
