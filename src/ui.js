@@ -1067,34 +1067,32 @@ export function setupConcierge() {
 
             // 1. Intentar capturar bloques con backticks
             let match;
+            const uniqueActions = new Set();
+
             // Reiniciamos regex
             const blockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/g;
             while ((match = blockRegex.exec(response.content)) !== null) {
-                try {
-                    const data = JSON.parse(match[1]);
-                    console.log("Acción IA detectada (Block):", data);
-                    processAIAction(data);
-                } catch (e) {
-                    console.error("Error parsing block JSON", e);
+                uniqueActions.add(match[1].trim());
+            }
+
+            // 2. Intentar capturar objetos sueltos SOLO si no hubo bloques válidos
+            if (uniqueActions.size === 0) {
+                const looseMatcher = /\{\s*"action"\s*:\s*"[\w_]+"(?:[^{}]|{[^{}]*})*\}/g;
+                while ((match = looseMatcher.exec(response.content)) !== null) {
+                    uniqueActions.add(match[0].trim());
                 }
             }
 
-            // 2. Intentar capturar objetos sueltos si no hubo bloques (o asumiendo mix)
-            // Usamos un regex que busque estructuras que parecen acciones
-            // Nota: matchAll o exec loop
-            const looseMatcher = /\{\s*"action"\s*:\s*"[\w_]+"(?:[^{}]|{[^{}]*})*\}/g;
-            while ((match = looseMatcher.exec(response.content)) !== null) {
-                // Solo procesar si NO estaba dentro de un bloque ya procesado (difícil de saber simple, 
-                // pero si la IA sigue instrucciones, usará backticks. Esto es por si falla).
-                // Para evitar duplicados, podríamos trackear IDs, pero por ahora confiamos en el prompt.
+            // 3. Procesar cada acción única una sola vez
+            uniqueActions.forEach(jsonStr => {
                 try {
-                    const data = JSON.parse(match[0]);
-                    console.log("Acción IA detectada (Loose):", data);
+                    const data = JSON.parse(jsonStr);
+                    console.log("Acción IA detectada:", data);
                     processAIAction(data);
                 } catch (e) {
-                    // Ignorar falsos positivos
+                    console.error("Error al parsear JSON único:", jsonStr, e);
                 }
-            }
+            });
         }
     };
 
@@ -1214,6 +1212,13 @@ function processAIAction(data) {
         saveState();
         refreshCurrentView();
     } else if (data.action === 'add_task') {
+        // Evitar duplicados exactos si la tarea ya existe (idempotencia)
+        const exists = state.tasks.find(t => t.text.toLowerCase() === data.text.toLowerCase() && !t.completed);
+        if (exists) {
+            console.log("Tarea duplicada ignorada:", data.text);
+            return;
+        }
+
         const newTask = {
             id: Date.now(),
             text: data.text,

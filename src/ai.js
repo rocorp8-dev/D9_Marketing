@@ -76,7 +76,8 @@ INSTRUCCIONES TÉCNICAS (CRÍTICO):
 1. Responde siempre en español.
 2. **NO repitas el JSON en tu respuesta de texto.** La respuesta de texto debe ser 100% natural para el humano.
 3. Si confirmas que harás algo (agendar, borrar, crear), **DEBES incluír el bloque JSON correspondiente**. Sin el JSON, la acción NO ocurrirá.
-4. El bloque JSON debe ir al final de tu respuesta, encerrado en \`\`\`json ... \`\`\`.
+4. **Solo incluye UN ÚNICO bloque JSON al final de tu respuesta.** No repitas la misma acción ni envíes múltiples bloques para lo mismo.
+5. El bloque JSON debe ir al final de tu respuesta, encerrado en \`\`\`json ... \`\`\`.
 
 COMANDOS JSON PERMITIDOS:
 - { "action": "create_lead", "name": "...", "interest": "...", "brandDNA": { "sector": "...", "pain": "..." } }
