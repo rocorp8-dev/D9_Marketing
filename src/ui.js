@@ -1156,7 +1156,7 @@ if (wsBtn && wsMenu) {
             if (wsMenu) wsMenu.style.display = 'none';
         }
     };
-}
+} // Fin if (wsBtn && wsMenu)
 
 function processAIAction(data) {
     if (data.action === 'create_lead') {
