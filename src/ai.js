@@ -63,6 +63,12 @@ ${listAllServices().map(s => `- ${s.name}: ${s.price} (${s.description})`).join(
 CRM ACTUAL:
 ${state.leads.map(l => `- **ID: ${l.id}** | **${l.name}** [Status: ${l.status}, Interés: ${l.interest}]`).join('\n')}
 
+CALENDARIO ACTUAL:
+${state.calendarEvents.map(e => `- [ID: ${e.id}] ${e.date} ${e.time}: ${e.title}`).join('\n')}
+
+TAREAS ACTUALES:
+${state.tasks.filter(t => !t.completed).map(t => `- [ID: ${t.id}] ${t.text}`).join('\n')}
+
 HOY ES: ${new Intl.DateTimeFormat('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date())}
 HORA LOCAL: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
 
@@ -77,6 +83,8 @@ COMANDOS JSON PERMITIDOS:
 - { "action": "update_lead", "id": 123, "status": "hot/warm/cold" }
 - { "action": "delete_lead", "id": 123 }
 - { "action": "schedule_event", "title": "...", "date": "YYYY-MM-DD", "time": "HH:MM" }
+- { "action": "delete_event", "id": 123 }
+- { "action": "clear_calendar" }
 - { "action": "add_task", "text": "..." }
 - { "action": "create_template", "name": "...", "text": "..." }
 `;

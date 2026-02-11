@@ -1170,6 +1170,16 @@ function processAIAction(data) {
         logActivity(`IA programó evento: ${data.title}`, 'calendar');
         saveState();
         refreshCurrentView();
+    } else if (data.action === 'delete_event') {
+        state.calendarEvents = state.calendarEvents.filter(e => e.id != data.id);
+        logActivity(`IA eliminó evento ID ${data.id}`, 'calendar-x');
+        saveState();
+        refreshCurrentView();
+    } else if (data.action === 'clear_calendar') {
+        state.calendarEvents = [];
+        logActivity(`IA limpió el calendario`, 'trash-2');
+        saveState();
+        refreshCurrentView();
     } else if (data.action === 'add_task') {
         const newTask = {
             id: Date.now(),
