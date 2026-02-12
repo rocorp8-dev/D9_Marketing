@@ -809,10 +809,14 @@ export function setupDesignPilot() {
 
         const dimensions = metaFormat.value.split('x');
         const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
-        const keywords = encodeURIComponent(prompt.split(' ').slice(0, 3).join(','));
+
+        // Priorizar keywords de la IA si existen
+        const aiKeywords = promptArea.dataset.keywords;
+        const searchTerms = aiKeywords ? encodeURIComponent(aiKeywords) : encodeURIComponent(prompt.split(' ').slice(0, 3).join(','));
         const seed = Math.floor(Math.random() * 1000);
 
-        const imageUrl = `https://images.unsplash.com/photo-1?auto=format&fit=crop&q=80&w=${width}&h=${height}&q=${keywords}&sig=${seed}`;
+        // Fuente Premium (Featured): Calidad similar a los ejemplos del usuario
+        const imageUrl = `https://source.unsplash.com/featured/${width}x${height}?${searchTerms}&sig=${seed}`;
 
         await updatePreview(imageUrl);
         stockBtn.disabled = false;
