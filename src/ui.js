@@ -624,8 +624,7 @@ export function setupDesignPilot() {
             <label style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Motor IA:</label>
             <select id="ai-model-selector" style="background:#0f172a; color:white; border:1px solid #475569; padding:5px 10px; border-radius:6px; font-size:0.85rem; cursor:pointer; flex:1;">
                 <option value="openai/dall-e-3">ChatGPT (DALL-E 3) - Más confiable</option>
-                <option value="black-forest-labs/flux-1-schnell">Flux 1.1 - Más realismo</option>
-                <option value="google/gemini-2.0-flash-001">Gemini Pro - Rápido</option>
+                <option value="black-forest-labs/flux-schnell">Flux Schnell - Más realismo</option>
             </select>
         `;
         imageBtn.parentElement.insertBefore(selectorContainer, imageBtn);
