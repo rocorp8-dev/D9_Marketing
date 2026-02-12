@@ -623,6 +623,7 @@ export function setupDesignPilot() {
         selectorContainer.innerHTML = `
             <label style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Motor IA:</label>
             <select id="ai-model-selector" style="background:#0f172a; color:white; border:1px solid #475569; padding:5px 10px; border-radius:6px; font-size:0.85rem; cursor:pointer; flex:1;">
+                <option value="google/gemini-2.0-flash-001">Banana Económico (Gemini 2.0) - ¡Casi Gratis!</option>
                 <option value="google/gemini-2.5-flash-image">Nano Banana (Google) - Ultra Rápido</option>
                 <option value="google/gemini-3-pro-image-preview">Nano Banana Pro (Google) - Pro Artístico</option>
                 <option value="openai/gpt-5-image">GPT-5 Image (OpenAI) - Hiperrealismo</option>
@@ -648,7 +649,8 @@ export function setupDesignPilot() {
                 headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     "model": "google/gemini-2.0-flash-001",
-                    "messages": [{ "role": "system", "content": "Director Creativo Senior experto en Meta Ads. Genera: CONCEPTO, PALETA, ELEMENTOS, COPY, PROMPT_IMAGEN (inglés descriptivo), KEYWORDS (3-5 palabras clave en inglés separadas por comas para búsqueda de stock fotos)." }, { "role": "user", "content": prompt }]
+                    "messages": [{ "role": "system", "content": "Director Creativo Senior experto en Meta Ads. Genera: CONCEPTO, PALETA, ELEMENTOS, COPY, PROMPT_IMAGEN (inglés descriptivo), KEYWORDS (3-5 palabras clave en inglés)." }, { "role": "user", "content": prompt }],
+                    "max_tokens": 500
                 })
             });
             const data = await response.json();
@@ -782,7 +784,8 @@ export function setupDesignPilot() {
                         body: JSON.stringify({
                             "model": modelId,
                             "messages": [{ "role": "user", "content": `Professional commercial artistic photography, high fidelity, 8k: ${techPrompt}` }],
-                            "modalities": ["image"]
+                            "modalities": ["image"],
+                            "max_tokens": 800
                         })
                     });
 
@@ -797,11 +800,14 @@ export function setupDesignPilot() {
                             if (urlMatch) imageUrl = urlMatch[0];
                         }
                         if (!imageUrl) debugInfo.push(`${modelId}: OK pero sin imagen en respuesta`);
+                    } else if (response.status === 402) {
+                        lastError = "Saldo Insuficiente en OpenRouter";
+                        debugInfo.push(`${modelId}: Error 402 (Sin Créditos)`);
+                        break; // No tiene sentido intentar otros modelos si no hay saldo
                     } else {
                         const errMsg = data.error?.message || response.statusText;
                         lastError = `Fallo ${modelId.split('/')[1]}: ${errMsg}`;
-                        debugInfo.push(`${modelId}: Error ${response.status} (${errMsg})`);
-                        console.warn(`[D9] Error en ${modelId}:`, data);
+                        debugInfo.push(`${modelId}: Error ${response.status}`);
                     }
                 } catch (e) {
                     console.error(`[D9] Error de red en ${modelId}:`, e);
@@ -816,8 +822,10 @@ export function setupDesignPilot() {
                 previewBox.innerHTML = `
                     <div style="padding:30px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
                         <i data-lucide="alert-triangle" style="width:40px; height:40px; margin-bottom:15px; color:#f59e0b;"></i>
-                        <h3 style="margin-bottom:5px; color:white;">Error de Generación</h3>
-                        <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:15px;">Razones: ${lastError || "Todos los motores ocupados"}</p>
+                        <h3 style="margin-bottom:5px; color:white;">Saldo o Cuota Agotada</h3>
+                        <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:15px;">Tu cuenta de OpenRouter necesita recarga para modelos Premium.</p>
+                        
+                        <a href="https://openrouter.ai/settings/credits" target="_blank" style="background:#3b82f6; color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-weight:700; margin-bottom:15px; display:inline-block;">🛒 Recargar Créditos OpenRouter</a>
                         
                         <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; font-size:10px; font-family:monospace; color:#64748b; margin-bottom:20px; text-align:left; width:100%; overflow:auto;">
                             DEBUG: ${debugInfo.join(' | ')}
