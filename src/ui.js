@@ -1061,7 +1061,7 @@ export function setupCalendar() {
                         <div class="sidebar-events-list" id="sidebar-events-list">
                             ${activeEvents.length > 0 ? `
                                 <h4 class="events-list-title">Actividades del día</h4>
-                                ${todayEvents.map(e => `
+                                ${activeEvents.map(e => `
                                     <div class="sidebar-event-item">
                                         <div class="event-time-badge">${e.time}</div>
                                         <div class="event-details">
