@@ -624,7 +624,8 @@ export function setupDesignPilot() {
             <label style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Motor IA:</label>
             <select id="ai-model-selector" style="background:#0f172a; color:white; border:1px solid #475569; padding:5px 10px; border-radius:6px; font-size:0.85rem; cursor:pointer; flex:1;">
                 <option value="openai/dall-e-3">ChatGPT (DALL-E 3) - Más confiable</option>
-                <option value="black-forest-labs/flux-schnell">Flux Schnell - Más realismo</option>
+                <option value="black-forest-labs/flux-schnell">Flux Schnell - Calidad Arte</option>
+                <option value="black-forest-labs/flux-pro">Flux Pro - Ultra Realismo</option>
             </select>
         `;
         imageBtn.parentElement.insertBefore(selectorContainer, imageBtn);
@@ -743,11 +744,11 @@ export function setupDesignPilot() {
         }, 300);
     }
 
-    // BOTÓN: GENERAR CON IA (Múltiples Motores)
+    // BOTÓN: GENERAR CON IA (Resiliente y con Auto-Retry)
     imageBtn.addEventListener('click', async () => {
         const prompt = promptArea.value.trim();
         const techPrompt = technicalPromptArea?.value.trim() || prompt;
-        const selectedModel = document.getElementById('ai-model-selector')?.value || "openai/dall-e-3";
+        const mainModel = document.getElementById('ai-model-selector')?.value || "openai/dall-e-3";
 
         if (!prompt) return alert("Describe qué necesitas.");
 
@@ -755,69 +756,70 @@ export function setupDesignPilot() {
         imageBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando...`;
         if (window.lucide) window.lucide.createIcons();
 
-        try {
-            const dimensions = metaFormat.value.split('x');
-            const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
-            const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+        // Lista de modelos para reintento automático si el principal falla
+        const modelsToTry = [mainModel, "black-forest-labs/flux-schnell", "openai/dall-e-3"];
+        let imageUrl = '';
+        let lastError = '';
 
-            let imageUrl = '';
-            let fluxErrorInfo = '';
+        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
 
-            if (apiKey) {
-                try {
-                    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                        method: "POST",
-                        headers: {
-                            "Authorization": `Bearer ${apiKey}`,
-                            "Content-Type": "application/json",
-                            "HTTP-Referer": "https://d9-marketing.vercel.app",
-                            "X-Title": "D9 Marketing"
-                        },
-                        body: JSON.stringify({
-                            "model": selectedModel,
-                            "messages": [{ "role": "user", "content": `Professional high-quality commercial photography, hyperrealistic, 8k: ${techPrompt}` }],
-                            "modalities": ["image"]
-                        })
-                    });
+        for (const modelId of modelsToTry) {
+            if (imageUrl) break;
 
-                    if (response.ok) {
-                        const data = await response.json();
-                        // Extraer imagen (OpenAI y Flux tienen estructuras similares en OpenRouter)
-                        if (data.choices?.[0]?.message?.images?.[0]) {
-                            const img = data.choices[0].message.images[0];
-                            imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
-                        } else if (data.choices?.[0]?.message?.content) {
-                            // Algunos modelos devuelven la URL en content o Markdown
-                            const urlMatch = data.choices[0].message.content.match(/https?:\/\/[^\s)]+/);
-                            if (urlMatch) imageUrl = urlMatch[0];
-                        }
-                    } else {
-                        const err = await response.json();
-                        fluxErrorInfo = `Error ${selectedModel.split('/')[1]}: ${err.error?.message?.substring(0, 30) || response.status}`;
+            try {
+                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${apiKey}`,
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://d9-marketing.vercel.app",
+                        "X-Title": "D9 Marketing Dashboard"
+                    },
+                    body: JSON.stringify({
+                        "model": modelId,
+                        "messages": [{ "role": "user", "content": `Professional commercial photography, hyperrealistic: ${techPrompt}` }],
+                        "modalities": ["image"]
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.choices?.[0]?.message?.images?.[0]) {
+                        const img = data.choices[0].message.images[0];
+                        imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
+                    } else if (data.choices?.[0]?.message?.content) {
+                        const urlMatch = data.choices[0].message.content.match(/https?:\/\/[^\s)]+/);
+                        if (urlMatch) imageUrl = urlMatch[0];
                     }
-                } catch (e) { fluxErrorInfo = "Error de Conexión"; }
-            } else {
-                fluxErrorInfo = "API Key no encontrada";
+                } else {
+                    const err = await response.json();
+                    lastError = `Error ${modelId.split('/')[1]}: ${err.error?.message?.substring(0, 40) || response.status}`;
+                    console.warn(`Fallo ${modelId}:`, lastError);
+                }
+            } catch (e) {
+                lastError = `Fallo de conexión en ${modelId}`;
             }
-
-            if (imageUrl) {
-                await updatePreview(imageUrl, fluxErrorInfo);
-            } else {
-                previewBox.innerHTML = `
-                    <div style="padding:40px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444;">
-                        <i data-lucide="alert-circle" style="width:48px; height:48px; margin-bottom:15px;"></i>
-                        <h3 style="margin-bottom:10px;">Error al generar imagen</h3>
-                        <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:20px;">${fluxErrorInfo || "El motor de IA no devolvió una imagen."}</p>
-                        <p style="font-size:0.9rem; color:white; font-weight:600;">Prueba cambiar el "Motor IA" arriba o usa "Buscar Foto Stock".</p>
-                    </div>
-                `;
-                if (window.lucide) window.lucide.createIcons();
-            }
-
-        } catch (e) {
-            console.error(e);
-            alert("Error crítico en la generación.");
         }
+
+        if (imageUrl) {
+            await updatePreview(imageUrl);
+        } else {
+            // FALLO TOTAL: Dar solución favorable inmediata (Stock)
+            previewBox.innerHTML = `
+                <div style="padding:40px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <i data-lucide="alert-triangle" style="width:50px; height:50px; margin-bottom:20px; color:#f59e0b;"></i>
+                    <h3 style="margin-bottom:10px; color:white;">Motores IA Saturados</h3>
+                    <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:25px;">No pudimos generar una imagen original en este momento (${lastError}).</p>
+                    
+                    <button onclick="document.getElementById('stock-btn').click()" style="background:#10b981; color:white; border:none; padding:12px 25px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="search"></i> Usar Foto Stock Profesional (¡Garantizado!)
+                    </button>
+                    <p style="font-size:0.8rem; color:#64748b; margin-top:20px;">Sugerencia: Cambia el "Motor IA" a Flux Schnell y reintenta.</p>
+                </div>
+            `;
+            if (window.lucide) window.lucide.createIcons();
+        }
+
         imageBtn.disabled = false;
         imageBtn.innerHTML = `<i data-lucide="image"></i> Generar con IA`;
         if (window.lucide) window.lucide.createIcons();
