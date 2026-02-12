@@ -615,6 +615,23 @@ export function setupDesignPilot() {
 
     if (!strategyBtn || !imageBtn || !promptArea || !previewBox) return;
 
+    // --- SELECTOR DE MOTOR DE IA (NUEVO) ---
+    let modelSelector = document.getElementById('ai-model-selector');
+    if (!modelSelector) {
+        const selectorContainer = document.createElement('div');
+        selectorContainer.style.cssText = 'margin-bottom:15px; display:flex; align-items:center; gap:10px; background:rgba(30,41,59,0.5); padding:10px; border-radius:10px; border:1px solid #334155;';
+        selectorContainer.innerHTML = `
+            <label style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Motor IA:</label>
+            <select id="ai-model-selector" style="background:#0f172a; color:white; border:1px solid #475569; padding:5px 10px; border-radius:6px; font-size:0.85rem; cursor:pointer; flex:1;">
+                <option value="openai/dall-e-3">ChatGPT (DALL-E 3) - Más confiable</option>
+                <option value="black-forest-labs/flux-1-schnell">Flux 1.1 - Más realismo</option>
+                <option value="google/gemini-2.0-flash-001">Gemini Pro - Rápido</option>
+            </select>
+        `;
+        imageBtn.parentElement.insertBefore(selectorContainer, imageBtn);
+        modelSelector = document.getElementById('ai-model-selector');
+    }
+
     let currentStrategy = '';
 
     strategyBtn.addEventListener('click', async () => {
@@ -727,14 +744,16 @@ export function setupDesignPilot() {
         }, 300);
     }
 
-    // BOTÓN: GENERAR CON IA (FLUX)
+    // BOTÓN: GENERAR CON IA (Múltiples Motores)
     imageBtn.addEventListener('click', async () => {
         const prompt = promptArea.value.trim();
         const techPrompt = technicalPromptArea?.value.trim() || prompt;
+        const selectedModel = document.getElementById('ai-model-selector')?.value || "openai/dall-e-3";
+
         if (!prompt) return alert("Describe qué necesitas.");
 
         imageBtn.disabled = true;
-        imageBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> IA Generativa...`;
+        imageBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando...`;
         if (window.lucide) window.lucide.createIcons();
 
         try {
@@ -756,7 +775,7 @@ export function setupDesignPilot() {
                             "X-Title": "D9 Marketing"
                         },
                         body: JSON.stringify({
-                            "model": "black-forest-labs/flux-1-schnell",
+                            "model": selectedModel,
                             "messages": [{ "role": "user", "content": `Professional high-quality commercial photography, hyperrealistic, 8k: ${techPrompt}` }],
                             "modalities": ["image"]
                         })
@@ -764,31 +783,33 @@ export function setupDesignPilot() {
 
                     if (response.ok) {
                         const data = await response.json();
+                        // Extraer imagen (OpenAI y Flux tienen estructuras similares en OpenRouter)
                         if (data.choices?.[0]?.message?.images?.[0]) {
                             const img = data.choices[0].message.images[0];
                             imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
-                        } else {
-                            fluxErrorInfo = "Respuesta de IA vacía.";
+                        } else if (data.choices?.[0]?.message?.content) {
+                            // Algunos modelos devuelven la URL en content o Markdown
+                            const urlMatch = data.choices[0].message.content.match(/https?:\/\/[^\s)]+/);
+                            if (urlMatch) imageUrl = urlMatch[0];
                         }
                     } else {
                         const err = await response.json();
-                        fluxErrorInfo = `Flux Offline: ${err.error?.message?.substring(0, 30) || response.status}`;
+                        fluxErrorInfo = `Error ${selectedModel.split('/')[1]}: ${err.error?.message?.substring(0, 30) || response.status}`;
                     }
-                } catch (e) { fluxErrorInfo = "Error de Conexión IA"; }
+                } catch (e) { fluxErrorInfo = "Error de Conexión"; }
             } else {
-                fluxErrorInfo = "API Key IA no configurada.";
+                fluxErrorInfo = "API Key no encontrada";
             }
 
             if (imageUrl) {
                 await updatePreview(imageUrl, fluxErrorInfo);
             } else {
-                // Ya no usamos Pollinations. Mostramos el error y sugerimos Stock.
                 previewBox.innerHTML = `
                     <div style="padding:40px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444;">
                         <i data-lucide="alert-circle" style="width:48px; height:48px; margin-bottom:15px;"></i>
-                        <h3 style="margin-bottom:10px;">IA Temporalmente No Disponible</h3>
-                        <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:20px;">${fluxErrorInfo || "No se pudo generar la imagen."}</p>
-                        <p style="font-size:0.9rem; color:white; font-weight:600;">Sugerencia: Usa el botón "Buscar Foto Stock" para obtener un asset profesional de reemplazo.</p>
+                        <h3 style="margin-bottom:10px;">Error al generar imagen</h3>
+                        <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:20px;">${fluxErrorInfo || "El motor de IA no devolvió una imagen."}</p>
+                        <p style="font-size:0.9rem; color:white; font-weight:600;">Prueba cambiar el "Motor IA" arriba o usa "Buscar Foto Stock".</p>
                     </div>
                 `;
                 if (window.lucide) window.lucide.createIcons();
