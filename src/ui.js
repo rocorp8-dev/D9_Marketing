@@ -623,9 +623,9 @@ export function setupDesignPilot() {
         selectorContainer.innerHTML = `
             <label style="font-size:0.8rem; color:#94a3b8; font-weight:600;">Motor IA:</label>
             <select id="ai-model-selector" style="background:#0f172a; color:white; border:1px solid #475569; padding:5px 10px; border-radius:6px; font-size:0.85rem; cursor:pointer; flex:1;">
-                <option value="openai/dall-e-3">ChatGPT (DALL-E 3) - Más confiable</option>
-                <option value="black-forest-labs/flux-schnell">Flux Schnell - Calidad Arte</option>
-                <option value="black-forest-labs/flux-pro">Flux Pro - Ultra Realismo</option>
+                <option value="google/gemini-2.5-flash-image">Nano Banana (Google) - Ultra Rápido</option>
+                <option value="google/gemini-3-pro-image-preview">Nano Banana Pro (Google) - Pro Artístico</option>
+                <option value="openai/gpt-5-image">GPT-5 Image (OpenAI) - Hiperrealismo</option>
             </select>
         `;
         imageBtn.parentElement.insertBefore(selectorContainer, imageBtn);
@@ -744,11 +744,11 @@ export function setupDesignPilot() {
         }, 300);
     }
 
-    // BOTÓN: GENERAR CON IA (Resiliente y con Auto-Retry)
+    // BOTÓN: GENERAR CON IA (Resiliente: Nano Banana + GPT-5)
     imageBtn.addEventListener('click', async () => {
         const prompt = promptArea.value.trim();
         const techPrompt = technicalPromptArea?.value.trim() || prompt;
-        const mainModel = document.getElementById('ai-model-selector')?.value || "openai/dall-e-3";
+        const mainModel = document.getElementById('ai-model-selector')?.value || "google/gemini-2.5-flash-image";
 
         if (!prompt) return alert("Describe qué necesitas.");
 
@@ -756,8 +756,8 @@ export function setupDesignPilot() {
         imageBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando...`;
         if (window.lucide) window.lucide.createIcons();
 
-        // Lista de modelos para reintento automático si el principal falla
-        const modelsToTry = [mainModel, "black-forest-labs/flux-schnell", "openai/dall-e-3"];
+        // Lista de modelos para reintento automático (Nueva generación 2026)
+        const modelsToTry = [mainModel, "google/gemini-2.5-flash-image", "openai/gpt-5-image"];
         let imageUrl = '';
         let lastError = '';
 
@@ -777,7 +777,7 @@ export function setupDesignPilot() {
                     },
                     body: JSON.stringify({
                         "model": modelId,
-                        "messages": [{ "role": "user", "content": `Professional commercial photography, hyperrealistic: ${techPrompt}` }],
+                        "messages": [{ "role": "user", "content": `Professional commercial artistic photography, high fidelity, 8k: ${techPrompt}` }],
                         "modalities": ["image"]
                     })
                 });
@@ -793,28 +793,27 @@ export function setupDesignPilot() {
                     }
                 } else {
                     const err = await response.json();
-                    lastError = `Error ${modelId.split('/')[1]}: ${err.error?.message?.substring(0, 40) || response.status}`;
-                    console.warn(`Fallo ${modelId}:`, lastError);
+                    lastError = `Fallo ${modelId.split('/')[1]}: ${err.error?.message?.substring(0, 40) || response.status}`;
                 }
             } catch (e) {
-                lastError = `Fallo de conexión en ${modelId}`;
+                lastError = `Error de red con ${modelId.split('/')[1]}`;
             }
         }
 
         if (imageUrl) {
             await updatePreview(imageUrl);
         } else {
-            // FALLO TOTAL: Dar solución favorable inmediata (Stock)
+            // FALLO TOTAL: Ofrecer stock como solución inmediata
             previewBox.innerHTML = `
                 <div style="padding:40px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
                     <i data-lucide="alert-triangle" style="width:50px; height:50px; margin-bottom:20px; color:#f59e0b;"></i>
-                    <h3 style="margin-bottom:10px; color:white;">Motores IA Saturados</h3>
-                    <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:25px;">No pudimos generar una imagen original en este momento (${lastError}).</p>
+                    <h3 style="margin-bottom:10px; color:white;">Motores IA Ocupados</h3>
+                    <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:25px;">No pudimos conectar con los motores Nano Banana/GPT-5 (${lastError}).</p>
                     
                     <button onclick="document.getElementById('stock-btn').click()" style="background:#10b981; color:white; border:none; padding:12px 25px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px;">
-                        <i data-lucide="search"></i> Usar Foto Stock Profesional (¡Garantizado!)
+                        <i data-lucide="search"></i> Usar Foto Stock de Alta Calidad (Garantizado)
                     </button>
-                    <p style="font-size:0.8rem; color:#64748b; margin-top:20px;">Sugerencia: Cambia el "Motor IA" a Flux Schnell y reintenta.</p>
+                    <p style="font-size:0.8rem; color:#64748b; margin-top:20px;">Prueba con un prompt más simple o usa el motor Stock.</p>
                 </div>
             `;
             if (window.lucide) window.lucide.createIcons();
