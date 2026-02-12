@@ -757,71 +757,87 @@ export function setupDesignPilot() {
         if (window.lucide) window.lucide.createIcons();
 
         // Lista de modelos para reintento automático (Nueva generación 2026)
-        const modelsToTry = [mainModel, "google/gemini-2.5-flash-image", "openai/gpt-5-image"];
+        const modelsToTry = [...new Set([mainModel, "google/gemini-2.5-flash-image", "openai/gpt-5-image"])];
         let imageUrl = '';
         let lastError = '';
+        let debugInfo = [];
 
-        const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+        try {
+            const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+            if (!apiKey) throw new Error("API Key VITE_OPENROUTER_API_KEY no configurada");
 
-        for (const modelId of modelsToTry) {
-            if (imageUrl) break;
+            for (const modelId of modelsToTry) {
+                if (imageUrl) break;
+                console.log(`[D9] Intentando con: ${modelId}`);
 
-            try {
-                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${apiKey}`,
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://d9-marketing.vercel.app",
-                        "X-Title": "D9 Marketing Dashboard"
-                    },
-                    body: JSON.stringify({
-                        "model": modelId,
-                        "messages": [{ "role": "user", "content": `Professional commercial artistic photography, high fidelity, 8k: ${techPrompt}` }],
-                        "modalities": ["image"]
-                    })
-                });
+                try {
+                    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${apiKey}`,
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://d9-marketing.vercel.app",
+                            "X-Title": "D9 Marketing Dashboard"
+                        },
+                        body: JSON.stringify({
+                            "model": modelId,
+                            "messages": [{ "role": "user", "content": `Professional commercial artistic photography, high fidelity, 8k: ${techPrompt}` }],
+                            "modalities": ["image"]
+                        })
+                    });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.choices?.[0]?.message?.images?.[0]) {
-                        const img = data.choices[0].message.images[0];
-                        imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
-                    } else if (data.choices?.[0]?.message?.content) {
-                        const urlMatch = data.choices[0].message.content.match(/https?:\/\/[^\s)]+/);
-                        if (urlMatch) imageUrl = urlMatch[0];
+                    const data = await response.json().catch(() => ({}));
+
+                    if (response.ok) {
+                        if (data.choices?.[0]?.message?.images?.[0]) {
+                            const img = data.choices[0].message.images[0];
+                            imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
+                        } else if (data.choices?.[0]?.message?.content) {
+                            const urlMatch = data.choices[0].message.content.match(/https?:\/\/[^\s)]+/);
+                            if (urlMatch) imageUrl = urlMatch[0];
+                        }
+                        if (!imageUrl) debugInfo.push(`${modelId}: OK pero sin imagen en respuesta`);
+                    } else {
+                        const errMsg = data.error?.message || response.statusText;
+                        lastError = `Fallo ${modelId.split('/')[1]}: ${errMsg}`;
+                        debugInfo.push(`${modelId}: Error ${response.status} (${errMsg})`);
+                        console.warn(`[D9] Error en ${modelId}:`, data);
                     }
-                } else {
-                    const err = await response.json();
-                    lastError = `Fallo ${modelId.split('/')[1]}: ${err.error?.message?.substring(0, 40) || response.status}`;
+                } catch (e) {
+                    console.error(`[D9] Error de red en ${modelId}:`, e);
+                    debugInfo.push(`${modelId}: Error de red/cors`);
                 }
-            } catch (e) {
-                lastError = `Error de red con ${modelId.split('/')[1]}`;
             }
-        }
 
-        if (imageUrl) {
-            await updatePreview(imageUrl);
-        } else {
-            // FALLO TOTAL: Ofrecer stock como solución inmediata
-            previewBox.innerHTML = `
-                <div style="padding:40px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                    <i data-lucide="alert-triangle" style="width:50px; height:50px; margin-bottom:20px; color:#f59e0b;"></i>
-                    <h3 style="margin-bottom:10px; color:white;">Motores IA Ocupados</h3>
-                    <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:25px;">No pudimos conectar con los motores Nano Banana/GPT-5 (${lastError}).</p>
-                    
-                    <button onclick="document.getElementById('stock-btn').click()" style="background:#10b981; color:white; border:none; padding:12px 25px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px;">
-                        <i data-lucide="search"></i> Usar Foto Stock de Alta Calidad (Garantizado)
-                    </button>
-                    <p style="font-size:0.8rem; color:#64748b; margin-top:20px;">Prueba con un prompt más simple o usa el motor Stock.</p>
-                </div>
-            `;
+            if (imageUrl) {
+                await updatePreview(imageUrl);
+            } else {
+                // FALLO TOTAL: Ofrecer stock como solución inmediata con detalle del error
+                previewBox.innerHTML = `
+                    <div style="padding:30px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                        <i data-lucide="alert-triangle" style="width:40px; height:40px; margin-bottom:15px; color:#f59e0b;"></i>
+                        <h3 style="margin-bottom:5px; color:white;">Error de Generación</h3>
+                        <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:15px;">Razones: ${lastError || "Todos los motores ocupados"}</p>
+                        
+                        <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; font-size:10px; font-family:monospace; color:#64748b; margin-bottom:20px; text-align:left; width:100%; overflow:auto;">
+                            DEBUG: ${debugInfo.join(' | ')}
+                        </div>
+
+                        <button onclick="document.getElementById('stock-btn').click()" style="background:#10b981; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px;">
+                            <i data-lucide="search"></i> Usar Foto Stock Profesional
+                        </button>
+                    </div>
+                `;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        } catch (globalErr) {
+            console.error("[D9] Fallo Crítico:", globalErr);
+            alert(`Error Crítico: ${globalErr.message}`);
+        } finally {
+            imageBtn.disabled = false;
+            imageBtn.innerHTML = `<i data-lucide="image"></i> Generar con IA`;
             if (window.lucide) window.lucide.createIcons();
         }
-
-        imageBtn.disabled = false;
-        imageBtn.innerHTML = `<i data-lucide="image"></i> Generar con IA`;
-        if (window.lucide) window.lucide.createIcons();
     });
 
     // BOTÓN: BUSCAR STOCK (UNSPLASH)
