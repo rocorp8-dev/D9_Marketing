@@ -658,18 +658,84 @@ export function setupDesignPilot() {
         if (window.lucide) window.lucide.createIcons();
     });
 
+    // --- LÓGICA DE GENERACIÓN INTEGRADA (IA + STOCK) ---
+    async function updatePreview(imageUrl, errorInfo = '') {
+        const dimensions = metaFormat.value.split('x');
+        const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
+
+        previewBox.innerHTML = `
+            <div style="position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#111827; border-radius:12px; overflow:hidden;">
+                <img id="generated-image" src="${imageUrl}" style="max-width:100%; max-height:100%; object-fit:contain;" onerror="this.src='https://placehold.co/${width}x${height}?text=Imagen+No+Disponible'">
+                ${errorInfo ? `<div style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.7); color:#ef4444; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:600; border:1px solid #ef4444;">${errorInfo}</div>` : ''}
+            </div>
+        `;
+
+        // Acciones
+        let actionsContainer = document.getElementById('design-actions-container');
+        if (!actionsContainer) {
+            actionsContainer = document.createElement('div');
+            actionsContainer.id = 'design-actions-container';
+            actionsContainer.style.cssText = 'display:flex; gap:15px; margin-top:20px; width:100%; justify-content:center; flex-wrap:wrap;';
+            previewBox.parentElement.appendChild(actionsContainer);
+        }
+
+        actionsContainer.innerHTML = `
+            <button id="download-btn" class="btn-primary" style="background:#ff3b30; padding:14px 28px; font-size:1rem; min-width:180px; font-weight:700; border:none; cursor:pointer; border-radius:10px; color:white; display:flex; align-items:center; gap:8px; justify-content:center; transition:all 0.2s;">
+                <i data-lucide="download"></i> Descarga ${width}x${height}
+            </button>
+            <a href="https://arena.ai/es/c/new" target="_blank" class="btn-arena" style="text-decoration:none; display:flex; align-items:center; gap:10px; padding:14px 28px; background:#0f172a; color:white; border-radius:10px; font-weight:600; min-width:180px; border:1px solid #334155; justify-content:center;">
+                <i data-lucide="external-link"></i> Arena AI
+            </a>
+        `;
+
+        // Boton descarga Robusto (Fix Bloqueo CORS)
+        setTimeout(() => {
+            const dBtn = document.getElementById('download-btn');
+            dBtn?.addEventListener('click', async () => {
+                dBtn.disabled = true;
+                const originalText = dBtn.innerHTML;
+                dBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> Preparando...`;
+                if (window.lucide) window.lucide.createIcons();
+
+                try {
+                    const response = await fetch(imageUrl, { mode: 'cors' });
+                    const blob = await response.blob();
+                    const bUrl = URL.createObjectURL(blob);
+
+                    const link = document.createElement('a');
+                    link.href = bUrl;
+                    link.download = `D9_Asset_${Date.now()}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(bUrl);
+                } catch (e) {
+                    console.error("Error en descarga:", e);
+                    const link = document.createElement('a');
+                    link.href = imageUrl;
+                    link.target = '_blank';
+                    link.download = `D9_Asset_${Date.now()}.png`;
+                    link.click();
+                }
+
+                dBtn.disabled = false;
+                dBtn.innerHTML = originalText;
+                if (window.lucide) window.lucide.createIcons();
+            });
+            if (window.lucide) window.lucide.createIcons();
+            updateStrategyOverlay();
+        }, 300);
+    }
+
+    // BOTÓN: GENERAR CON IA (FLUX)
     imageBtn.addEventListener('click', async () => {
         const prompt = promptArea.value.trim();
         const techPrompt = technicalPromptArea?.value.trim() || prompt;
         if (!prompt) return alert("Describe qué necesitas.");
 
         imageBtn.disabled = true;
-        imageBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> Generando...`;
+        imageBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> IA Generativa...`;
         if (window.lucide) window.lucide.createIcons();
-
-        console.log("--- DEBUG DESIGN PILOT ---");
-        console.log("Prompt:", prompt);
-        console.log("Tech Prompt:", techPrompt);
 
         try {
             const dimensions = metaFormat.value.split('x');
@@ -679,12 +745,8 @@ export function setupDesignPilot() {
             let imageUrl = '';
             let fluxErrorInfo = '';
 
-            if (!apiKey) {
-                fluxErrorInfo = "API Key missing";
-                console.error("VITE_OPENROUTER_API_KEY no detectada.");
-            } else {
+            if (apiKey) {
                 try {
-                    // LLAMADA A FLUX VIA OPENROUTER
                     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                         method: "POST",
                         headers: {
@@ -695,93 +757,66 @@ export function setupDesignPilot() {
                         },
                         body: JSON.stringify({
                             "model": "black-forest-labs/flux-1-schnell",
-                            "messages": [{ "role": "user", "content": techPrompt }],
+                            "messages": [{ "role": "user", "content": `Professional high-quality commercial photography, hyperrealistic, 8k: ${techPrompt}` }],
                             "modalities": ["image"]
                         })
                     });
 
-                    if (!response.ok) {
-                        const errText = await response.text();
-                        console.error("Flux API Error:", response.status, errText);
-                        fluxErrorInfo = `API ${response.status}: ${errText.substring(0, 30)}`;
-                    } else {
+                    if (response.ok) {
                         const data = await response.json();
-                        console.log("Flux Success Data:", data);
-
-                        // Capturar imagen
                         if (data.choices?.[0]?.message?.images?.[0]) {
-                            const imgObj = data.choices[0].message.images[0];
-                            imageUrl = typeof imgObj === 'string' ? imgObj : (imgObj.url || imgObj.image_url?.url);
-                        } else if (data.choices?.[0]?.message?.content?.includes('data:image')) {
-                            const b64Match = data.choices[0].message.content.match(/data:image\/[a-zA-Z]+;base64,[^"'\s]*/);
-                            if (b64Match) imageUrl = b64Match[0];
+                            const img = data.choices[0].message.images[0];
+                            imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
                         }
-
-                        if (!imageUrl) fluxErrorInfo = "No image in response";
+                    } else {
+                        const err = await response.json();
+                        fluxErrorInfo = `Error IA: ${err.error?.message?.substring(0, 30) || response.status}`;
                     }
-                } catch (fluxErr) {
-                    console.error("Error contactando Flux:", fluxErr);
-                    fluxErrorInfo = fluxErr.message;
-                }
+                } catch (e) { fluxErrorInfo = "Connection Error"; }
             }
 
-            // --- SEGUNDA OPORTUNIDAD: Fallback Generativo Ultra-Estable ---
             if (!imageUrl) {
-                console.warn("Flux falló, usando fallback generativo estable. Error:", fluxErrorInfo);
-                imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(techPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
+                imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(techPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
+                if (!fluxErrorInfo) fluxErrorInfo = "Backup Engine Active";
             }
 
-            previewBox.innerHTML = `
-                <div style="position:relative; width:100%; height:100%;">
-                    <img id="generated-image" src="${imageUrl}" style="width:100%; height:100%; object-fit:contain; border-radius:12px;" onerror="this.src='https://placehold.co/${width}x${height}?text=Reintente+Carga'">
-                    ${fluxErrorInfo ? `<div style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:#ff3b30; padding:4px 8px; border-radius:4px; font-size:10px;">Flux: ${fluxErrorInfo}</div>` : ''}
-                </div>
-            `;
-
-            // Mantener lógica de botones de acción
-            let actionsContainer = document.getElementById('design-actions-container');
-            if (!actionsContainer) {
-                actionsContainer = document.createElement('div');
-                actionsContainer.id = 'design-actions-container';
-                actionsContainer.style.cssText = 'display:flex; gap:15px; margin-top:20px; width:100%; justify-content:center;';
-                previewBox.parentElement.appendChild(actionsContainer);
-            }
-
-            actionsContainer.innerHTML = `
-                <button id="download-btn" class="btn-primary" style="background:#ff3b30; padding:14px 28px; font-size:1rem; min-width:180px; font-weight:700; border:none; cursor:pointer; border-radius:10px; color:white; display:flex; align-items:center; gap:8px; justify-content:center;">
-                    <i data-lucide="download"></i> Descarga ${width}x${height}
-                </button>
-                <a href="https://arena.ai/es/c/new" target="_blank" class="btn-arena" style="text-decoration:none; display:flex; align-items:center; gap:10px; padding:14px 28px; background:#0f172a; color:white; border-radius:10px; font-weight:600; min-width:180px; border:1px solid #334155; justify-content:center;">
-                    <i data-lucide="external-link"></i> Arena AI
-                </a>
-            `;
-
-            setTimeout(() => {
-                document.getElementById('download-btn')?.addEventListener('click', () => {
-                    const canvas = document.createElement('canvas');
-                    const img = document.getElementById('generated-image');
-                    if (!img) return;
-
-                    canvas.width = img.naturalWidth || width;
-                    canvas.height = img.naturalHeight || height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                    const link = document.createElement('a');
-                    link.download = `D9_Asset_${Date.now()}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                });
-                if (window.lucide) window.lucide.createIcons();
-                updateStrategyOverlay();
-            }, 500);
+            await updatePreview(imageUrl, fluxErrorInfo);
 
         } catch (e) {
-            console.error("Error en generación de imagen:", e);
-            previewBox.innerHTML = `<div style="color:var(--accent-primary); padding:20px;">Error al conectar con Flux. Intenta de nuevo.</div>`;
+            console.error(e);
+            alert("Error en la generación.");
         }
         imageBtn.disabled = false;
-        imageBtn.innerHTML = `<i data-lucide="image"></i> Generar Imagen`;
+        imageBtn.innerHTML = `<i data-lucide="image"></i> Generar con IA`;
+        if (window.lucide) window.lucide.createIcons();
+    });
+
+    // BOTÓN: BUSCAR STOCK (UNSPLASH)
+    const stockBtn = document.getElementById('stock-btn') || document.createElement('button');
+    if (!document.getElementById('stock-btn')) {
+        stockBtn.id = 'stock-btn';
+        stockBtn.className = 'btn-secondary';
+        stockBtn.style.cssText = 'width:100%; margin-top:10px; background:#1e293b; color:white; border:1px solid #334155; padding:12px; border-radius:10px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px; justify-content:center;';
+        stockBtn.innerHTML = `<i data-lucide="search"></i> Buscar Foto Stock`;
+        imageBtn.parentElement.appendChild(stockBtn);
+    }
+
+    stockBtn.addEventListener('click', async () => {
+        const prompt = promptArea.value.trim();
+        if (!prompt) return alert("Escribe qué buscas.");
+        stockBtn.disabled = true;
+        stockBtn.innerHTML = `<i data-lucide="loader" class="spin"></i> Buscando...`;
+
+        const dimensions = metaFormat.value.split('x');
+        const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
+        const keywords = encodeURIComponent(prompt.split(' ').slice(0, 3).join(','));
+        const seed = Math.floor(Math.random() * 1000);
+
+        const imageUrl = `https://images.unsplash.com/photo-1?auto=format&fit=crop&q=80&w=${width}&h=${height}&q=${keywords}&sig=${seed}`;
+
+        await updatePreview(imageUrl);
+        stockBtn.disabled = false;
+        stockBtn.innerHTML = `<i data-lucide="search"></i> Buscar Foto Stock`;
         if (window.lucide) window.lucide.createIcons();
     });
 }
