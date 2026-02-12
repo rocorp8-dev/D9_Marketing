@@ -901,6 +901,11 @@ export function renderCalendar(container) {
                 <p style="color:var(--text-dim);">Gestiona tus reuniones y entregas de alto nivel.</p>
             </div>
             <div class="calendar-controls">
+                <div class="calendar-nav">
+                    <button id="prev-btn" class="nav-btn"><i data-lucide="chevron-left"></i></button>
+                    <button id="today-btn" class="nav-btn">Hoy</button>
+                    <button id="next-btn" class="nav-btn"><i data-lucide="chevron-right"></i></button>
+                </div>
                 <div class="view-switch">
                     <button id="view-week" class="switch-btn active">Semana</button>
                     <button id="view-month" class="switch-btn">Mes</button>
@@ -950,15 +955,19 @@ export function setupCalendar() {
     const cancelBtn = document.getElementById('cancel-event');
     const viewWeek = document.getElementById('view-week');
     const viewMonth = document.getElementById('view-month');
+    const prevBtn = document.getElementById('prev-btn');
+    const todayBtn = document.getElementById('today-btn');
+    const nextBtn = document.getElementById('next-btn');
 
     if (!grid) return;
 
     let currentView = 'week';
+    let baseDate = new Date();
 
     const render = () => {
         grid.innerHTML = '';
         const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() - baseDate.getDay());
 
         if (currentView === 'week') {
             const daysShort = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -986,9 +995,9 @@ export function setupCalendar() {
                 grid.appendChild(col);
             });
         } else {
-            // Month view - Full calendar grid with sidebar
-            const year = now.getFullYear();
-            const month = now.getMonth();
+            // Month view 
+            const year = baseDate.getFullYear();
+            const month = baseDate.getMonth();
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             const daysInMonth = lastDay.getDate();
@@ -1033,22 +1042,24 @@ export function setupCalendar() {
                 `;
             }
 
-            // Get today's events for initial sidebar
-            const todayKey = now.toISOString().split('T')[0];
-            const todayEvents = state.calendarEvents.filter(e => e.date === todayKey);
-            const todayDayName = dayHeaders[now.getDay()];
+            // Get selected day's events for initial sidebar (defaults to baseDate or today if same month)
+            const isSameMonthAsNow = baseDate.getMonth() === now.getMonth() && baseDate.getFullYear() === now.getFullYear();
+            const initialSidebarDate = isSameMonthAsNow ? now : new Date(year, month, 1);
+            const sidebarKey = initialSidebarDate.toISOString().split('T')[0];
+            const activeEvents = state.calendarEvents.filter(e => e.date === sidebarKey);
+            const sidebarDayName = dayHeaders[initialSidebarDate.getDay()];
 
             monthHTML += `
                         </div>
                     </div>
                     <div class="month-sidebar" id="month-sidebar">
                         <div class="sidebar-day-display">
-                            <div class="sidebar-day-name">${todayDayName}</div>
-                            <div class="sidebar-day-number">${now.getDate()}</div>
+                            <div class="sidebar-day-name">${sidebarDayName}</div>
+                            <div class="sidebar-day-number">${initialSidebarDate.getDate()}</div>
                             <div class="sidebar-month-year">${monthNames[month]} ${year}</div>
                         </div>
                         <div class="sidebar-events-list" id="sidebar-events-list">
-                            ${todayEvents.length > 0 ? `
+                            ${activeEvents.length > 0 ? `
                                 <h4 class="events-list-title">Actividades del día</h4>
                                 ${todayEvents.map(e => `
                                     <div class="sidebar-event-item">
@@ -1100,6 +1111,29 @@ export function setupCalendar() {
 
     if (viewWeek) viewWeek.onclick = () => { currentView = 'week'; viewWeek.classList.add('active'); viewMonth.classList.remove('active'); render(); };
     if (viewMonth) viewMonth.onclick = () => { currentView = 'month'; viewMonth.classList.add('active'); viewWeek.classList.remove('active'); render(); };
+
+    if (prevBtn) prevBtn.onclick = () => {
+        if (currentView === 'week') {
+            baseDate.setDate(baseDate.getDate() - 7);
+        } else {
+            baseDate.setMonth(baseDate.getMonth() - 1);
+        }
+        render();
+    };
+
+    if (nextBtn) nextBtn.onclick = () => {
+        if (currentView === 'week') {
+            baseDate.setDate(baseDate.getDate() + 7);
+        } else {
+            baseDate.setMonth(baseDate.getMonth() + 1);
+        }
+        render();
+    };
+
+    if (todayBtn) todayBtn.onclick = () => {
+        baseDate = new Date();
+        render();
+    };
 
     if (addBtn) addBtn.onclick = () => modal.style.display = 'flex';
     if (cancelBtn) cancelBtn.onclick = () => modal.style.display = 'none';
