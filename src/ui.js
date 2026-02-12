@@ -767,24 +767,36 @@ export function setupDesignPilot() {
                         if (data.choices?.[0]?.message?.images?.[0]) {
                             const img = data.choices[0].message.images[0];
                             imageUrl = typeof img === 'string' ? img : (img.url || img.image_url?.url);
+                        } else {
+                            fluxErrorInfo = "Respuesta de IA vacía.";
                         }
                     } else {
                         const err = await response.json();
-                        fluxErrorInfo = `Error IA: ${err.error?.message?.substring(0, 30) || response.status}`;
+                        fluxErrorInfo = `Flux Offline: ${err.error?.message?.substring(0, 30) || response.status}`;
                     }
-                } catch (e) { fluxErrorInfo = "Connection Error"; }
+                } catch (e) { fluxErrorInfo = "Error de Conexión IA"; }
+            } else {
+                fluxErrorInfo = "API Key IA no configurada.";
             }
 
-            if (!imageUrl) {
-                imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(techPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
-                if (!fluxErrorInfo) fluxErrorInfo = "Backup Engine Active";
+            if (imageUrl) {
+                await updatePreview(imageUrl, fluxErrorInfo);
+            } else {
+                // Ya no usamos Pollinations. Mostramos el error y sugerimos Stock.
+                previewBox.innerHTML = `
+                    <div style="padding:40px; text-align:center; color:#ef4444; background:#1e1b4b; border-radius:12px; border:1px solid #ef4444;">
+                        <i data-lucide="alert-circle" style="width:48px; height:48px; margin-bottom:15px;"></i>
+                        <h3 style="margin-bottom:10px;">IA Temporalmente No Disponible</h3>
+                        <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:20px;">${fluxErrorInfo || "No se pudo generar la imagen."}</p>
+                        <p style="font-size:0.9rem; color:white; font-weight:600;">Sugerencia: Usa el botón "Buscar Foto Stock" para obtener un asset profesional de reemplazo.</p>
+                    </div>
+                `;
+                if (window.lucide) window.lucide.createIcons();
             }
-
-            await updatePreview(imageUrl, fluxErrorInfo);
 
         } catch (e) {
             console.error(e);
-            alert("Error en la generación.");
+            alert("Error crítico en la generación.");
         }
         imageBtn.disabled = false;
         imageBtn.innerHTML = `<i data-lucide="image"></i> Generar con IA`;
@@ -815,8 +827,8 @@ export function setupDesignPilot() {
         const searchTerms = aiKeywords ? encodeURIComponent(aiKeywords) : encodeURIComponent(prompt.split(' ').slice(0, 3).join(','));
         const seed = Math.floor(Math.random() * 1000);
 
-        // Fuente Premium (Featured): Calidad similar a los ejemplos del usuario
-        const imageUrl = `https://source.unsplash.com/featured/${width}x${height}?${searchTerms}&sig=${seed}`;
+        // Fuente Ultra-Estable (LoremFlickr): Alta calidad sin errores de conexión Unsplash
+        const imageUrl = `https://loremflickr.com/${width}/${height}/${searchTerms}?lock=${seed}`;
 
         await updatePreview(imageUrl);
         stockBtn.disabled = false;
