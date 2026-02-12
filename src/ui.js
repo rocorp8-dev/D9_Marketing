@@ -676,73 +676,66 @@ export function setupDesignPilot() {
             const width = parseInt(dimensions[0]), height = parseInt(dimensions[1]);
             const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
 
-            if (!apiKey) {
-                console.error("VITE_OPENROUTER_API_KEY no detectada.");
-                throw new Error("API Key missing");
-            }
-
-            // LLAMADA A FLUX VIA OPENROUTER (Refinada con mejor manejo de errores)
-            let response;
-            try {
-                response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${apiKey}`,
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://d9-marketing.vercel.app",
-                        "X-Title": "D9 Marketing"
-                    },
-                    body: JSON.stringify({
-                        "model": "black-forest-labs/flux-1-schnell",
-                        "messages": [{ "role": "user", "content": techPrompt }],
-                        "modalities": ["image"]
-                    })
-                });
-            } catch (netErr) {
-                console.error("Error de Red:", netErr);
-                throw new Error("Error de red: No se pudo contactar con OpenRouter.");
-            }
-
-            if (!response.ok) {
-                const errText = await response.text();
-                console.error("Respuesta no OK:", response.status, errText);
-                throw new Error(`Error API (${response.status}): ${errText.substring(0, 50)}...`);
-            }
-
-            const data = await response.json();
-            console.log("OpenRouter Response Data:", data);
-
-            if (data.error) {
-                console.error("Error de OpenRouter:", data.error);
-                throw new Error(`OpenRouter Error: ${data.error.message || "Unknown"}`);
-            }
-
             let imageUrl = '';
+            let fluxErrorInfo = '';
 
-            // 1. Intentar capturar desde el array de imágenes
-            if (data.choices?.[0]?.message?.images?.[0]) {
-                const imgObj = data.choices[0].message.images[0];
-                imageUrl = typeof imgObj === 'string' ? imgObj : (imgObj.url || imgObj.image_url?.url);
-                console.log("Imagen detectada en array 'images':", imageUrl);
-            }
-            // 2. Intentar capturar desde el content
-            else if (data.choices?.[0]?.message?.content?.includes('data:image')) {
-                const b64Match = data.choices[0].message.content.match(/data:image\/[a-zA-Z]+;base64,[^"'\s]*/);
-                if (b64Match) {
-                    imageUrl = b64Match[0];
-                    console.log("Base64 detectado en 'content'");
+            if (!apiKey) {
+                fluxErrorInfo = "API Key missing";
+                console.error("VITE_OPENROUTER_API_KEY no detectada.");
+            } else {
+                try {
+                    // LLAMADA A FLUX VIA OPENROUTER
+                    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${apiKey}`,
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://d9-marketing.vercel.app",
+                            "X-Title": "D9 Marketing"
+                        },
+                        body: JSON.stringify({
+                            "model": "black-forest-labs/flux-1-schnell",
+                            "messages": [{ "role": "user", "content": techPrompt }],
+                            "modalities": ["image"]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        console.error("Flux API Error:", response.status, errText);
+                        fluxErrorInfo = `API ${response.status}: ${errText.substring(0, 30)}`;
+                    } else {
+                        const data = await response.json();
+                        console.log("Flux Success Data:", data);
+
+                        // Capturar imagen
+                        if (data.choices?.[0]?.message?.images?.[0]) {
+                            const imgObj = data.choices[0].message.images[0];
+                            imageUrl = typeof imgObj === 'string' ? imgObj : (imgObj.url || imgObj.image_url?.url);
+                        } else if (data.choices?.[0]?.message?.content?.includes('data:image')) {
+                            const b64Match = data.choices[0].message.content.match(/data:image\/[a-zA-Z]+;base64,[^"'\s]*/);
+                            if (b64Match) imageUrl = b64Match[0];
+                        }
+
+                        if (!imageUrl) fluxErrorInfo = "No image in response";
+                    }
+                } catch (fluxErr) {
+                    console.error("Error contactando Flux:", fluxErr);
+                    fluxErrorInfo = fluxErr.message;
                 }
             }
 
             // --- SEGUNDA OPORTUNIDAD: Fallback Generativo Ultra-Estable ---
             if (!imageUrl) {
-                console.warn("Flux no devolvió imagen, usando fallback generativo estable.");
-                // Usamos image.pollinations.ai que es distinto y más estable que el anterior
+                console.warn("Flux falló, usando fallback generativo estable. Error:", fluxErrorInfo);
                 imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(techPrompt)}?width=${width}&height=${height}&model=flux&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
             }
 
             previewBox.innerHTML = `
-                <img id="generated-image" src="${imageUrl}" style="width:100%; height:100%; object-fit:contain; border-radius:12px;" onerror="this.src='https://placehold.co/${width}x${height}?text=Error+de+Carga'">
+                <div style="position:relative; width:100%; height:100%;">
+                    <img id="generated-image" src="${imageUrl}" style="width:100%; height:100%; object-fit:contain; border-radius:12px;" onerror="this.src='https://placehold.co/${width}x${height}?text=Reintente+Carga'">
+                    ${fluxErrorInfo ? `<div style="position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.6); color:#ff3b30; padding:4px 8px; border-radius:4px; font-size:10px;">Flux: ${fluxErrorInfo}</div>` : ''}
+                </div>
             `;
 
             // Mantener lógica de botones de acción
